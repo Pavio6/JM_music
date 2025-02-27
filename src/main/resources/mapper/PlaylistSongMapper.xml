@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jlf.music.mapper.PlaylistSongMapper">
+
+    <!--  批量插入歌单歌曲信息  -->
+    <insert id="insertBatch">
+        INSERT INTO playlist_song (playlist_id, song_id)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.playlistId}, #{item.songId})
+        </foreach>
+    </insert>
+
+</mapper>
+

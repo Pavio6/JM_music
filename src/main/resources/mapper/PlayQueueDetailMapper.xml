@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jlf.music.mapper.PlayQueueDetailMapper">
+    <!-- 批量删除列表中的歌曲 -->
+    <delete id="deleteBatch">
+        DELETE FROM play_queue_detail
+        WHERE queue_id = #{queueId}
+        AND song_id IN
+        <foreach collection="songIds" item="songId" open="(" separator="," close=")">
+            #{songId}
+        </foreach>
+    </delete>
+    <!--  对删除后列表中的歌曲重新排序  -->
+    <update id="updateSortAfterDelete">
+        UPDATE play_queue_detail p1
+            JOIN (SELECT id, ROW_NUMBER() OVER (PARTITION BY queue_id ORDER BY sort) as new_sort
+                  FROM play_queue_detail
+                  WHERE queue_id = #{queueId}) p2 ON p1.id = p2.id
+        SET p1.sort = p2.new_sort
+        WHERE p1.queue_id = #{queueId};
+    </update>
+</mapper>

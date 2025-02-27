@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jlf.music.mapper.CommentInfoMapper">
+    <!-- 分页查询顶级评论（一级评论） -->
+    <select id="selectTopLevelComments" resultType="com.jlf.music.controller.vo.CommentTreeVo">
+        SELECT ci.comment_id  AS commentId,  # 评论id
+               su.user_id     AS userId,     # 用户id
+               su.user_name   AS userName,   # 用户名称
+               su.user_avatar AS userAvatar, # 用户头像
+               ci.content,                   # 评论内容
+               ci.create_time AS createTime, # 评论时间
+               ci.like_count  AS likeCount   # 评论点赞数
+        FROM comment_info ci
+                 JOIN
+             sys_user su ON ci.user_id = su.user_id
+        WHERE ci.target_type = #{targetType}
+          AND ci.target_id = #{targetId}
+          AND ci.level = 1
+          and ci.delete_flag = 0
+          and su.delete_flag = 0
+        ORDER BY ci.like_count DESC
+    </select>
+    <!-- 查询指定父评论下的子评论 -->
+    <select id="selectChildComments" resultType="com.jlf.music.controller.vo.CommentTreeVo">
+        SELECT ci.comment_id  AS commentId,  # 评论id
+               su.user_id     AS userId,     # 用户id
+               su.user_name   AS userName,   # 用户名
+               su.user_avatar AS userAvatar, # 用户头像
+               ci.content,                   # 评论内容
+               ci.create_time AS createTime, # 评论时间
+               ci.like_count  AS likeCount   # 评论点赞数
+        FROM comment_info ci
+                 JOIN
+             sys_user su ON ci.user_id = su.user_id
+        WHERE ci.parent_comment_id = #{parentCommentId}
+          AND ci.delete_flag = 0
+          AND su.delete_flag = 0
+        ORDER BY ci.like_count DESC
+    </select>
+</mapper>

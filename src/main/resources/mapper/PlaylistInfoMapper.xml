@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jlf.music.mapper.PlaylistInfoMapper">
+    <!--
+    resultMap：将数据库查询结果映射到Java对象上
+    -->
+    <resultMap id="PlaylistDetailDTO" type="com.jlf.music.controller.dto.PlaylistDetailDTO">
+        <!-- 基础字段 -->
+        <id property="playlistId" column="playlist_id"/>
+        <result property="playlistName" column="playlist_name"/>
+        <result property="playlistBio" column="playlist_bio"/>
+        <result property="playlistCover" column="playlist_cover"/>
+        <result property="playCount" column="play_count"/>
+        <result property="userId" column="user_id"/>
+        <result property="userName" column="user_name"/>
+        <!--
+        <collection> 标签：用于映射一对多的关系
+        -->
+        <collection property="tagName" ofType="string">
+            <result column="tag_name"/>
+        </collection>
+        <!-- 歌曲列表（对象集合） -->
+        <collection property="songs" ofType="com.jlf.music.controller.vo.SongBasicInfoVo">
+            <id property="songId" column="song_id"/>
+            <result property="songName" column="song_name"/>
+            <result property="songCover" column="song_cover"/>
+            <result property="singerName" column="singer_name"/>
+            <result property="songDuration" column="song_duration"/>
+            <result property="songFilePath" column="song_file_path"/>
+            <result property="albumName" column="album_name"/>
+        </collection>
+    </resultMap>
+
+    <!-- 查询歌单详细信息-->
+    <!--  执行顺序 FROM -> JOIN -> WHERE -> SELECT  -->
+    <select id="findPlaylistDetail" resultMap="PlaylistDetailDTO">
+        <!-- 上述 SQL 查询 -->
+        SELECT
+        pi.playlist_id, # 歌单id
+        pi.playlist_name, # 歌单名称
+        pi.playlist_bio, # 歌单简介
+        pi.playlist_cover, # 歌单封面
+        pi.play_count, # 歌单播放量
+        su.user_id, # 用户id
+        su.user_name, # 用户名称
+        ti.tag_name,
+        si.song_id, # 歌曲id
+        si.song_name, # 歌曲名称
+        si.song_cover, # 歌曲封面图
+        sii.singer_name, # 歌手名
+        si.song_duration, # 歌曲时长
+        ai.album_name, # 专辑名
+        si.song_file_path # 歌曲音频文件
+        FROM jm_music.playlist_info pi
+        LEFT JOIN jm_music.sys_user su
+        ON pi.creator_id = su.user_id AND su.delete_flag = 0
+        LEFT JOIN jm_music.playlist_tags pt
+        ON pi.playlist_id = pt.playlist_id AND pt.delete_flag = 0
+        LEFT JOIN jm_music.tags_info ti
+        ON pt.tag_id = ti.tag_id AND ti.delete_flag = 0
+        LEFT JOIN jm_music.playlist_song ps
+        ON pi.playlist_id = ps.playlist_id AND ps.delete_flag = 0
+        LEFT JOIN jm_music.song_info si
+        ON ps.song_id = si.song_id AND si.delete_flag = 0
+        left join jm_music.album_info ai
+        on si.album_id = ai.album_id and ai.delete_flag = 0
+        LEFT JOIN jm_music.singer_info sii
+        ON si.singer_id = sii.singer_id AND sii.delete_flag = 0
+        WHERE pi.playlist_id = #{playlistId} AND pi.delete_flag = 0
+    </select>
+</mapper>

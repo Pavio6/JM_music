@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jlf.music.mapper.SongInfoMapper">
+    <!-- 分页查询歌曲 -->
+    <select id="getSongsByPage" resultType="com.jlf.music.controller.vo.SongBasicInfoVo">
+        SELECT
+        s.song_id AS songId,
+        s.song_name AS songName,
+        s.song_duration AS songDuration,
+        s.song_cover AS songCover,
+        si.singer_name AS singerName,
+        ai.album_name AS albumName
+        FROM
+        song_info s
+        LEFT JOIN
+        singer_info si ON s.singer_id = si.singer_id
+        LEFT JOIN
+        album_info ai ON s.album_id = ai.album_id
+        WHERE
+        s.delete_flag = 0
+        <if test="songQry.songName != null and songQry.songName != ''">
+            AND s.song_name LIKE CONCAT('%', #{songQry.songName}, '%')
+        </if>
+    </select>
+    <!--  分页查询用户喜欢的歌曲列表  -->
+    <select id="getFavoriteSongs" resultType="com.jlf.music.controller.vo.SongBasicInfoVo">
+        SELECT
+        s.song_id AS songId,
+        s.song_name AS songName,
+        s.song_duration AS songDuration,
+        s.song_cover AS songCover,
+        si.singer_name AS singerName,
+        ai.album_name AS albumName
+        FROM
+        song_info s
+        left JOIN
+        singer_info si ON s.singer_id = si.singer_id
+        left JOIN
+        album_info ai ON s.album_id = ai.album_id
+        WHERE
+        s.song_id IN
+        <foreach item="item" collection="songIds" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+        AND s.delete_flag = 0
+        AND si.delete_flag = 0
+        AND ai.delete_flag = 0
+    </select>
+    <select id="searchSongs" resultType="com.jlf.music.controller.vo.SongSimpleInfoVo">
+        SELECT si.song_id      AS songId,
+               si.song_name    AS songName,
+               si.song_cover   AS songCover,
+               sin.singer_name AS singerName
+        FROM song_info si
+                 LEFT JOIN singer_info sin
+                           ON si.singer_id = sin.singer_id
+                               AND sin.delete_flag = 0 -- 将歌手过滤条件放在JOIN条件里
+        WHERE si.song_name LIKE CONCAT('%', #{keyword}, '%')
+          AND si.delete_flag = 0
+        ORDER BY si.create_time DESC
+            LIMIT #{limit}
+    </select>
+</mapper>

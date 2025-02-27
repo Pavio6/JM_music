@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jlf.music.mapper.AlbumInfoMapper">
+    <!-- 分页查询专辑 -->
+    <select id="getAlbumsByPage" resultType="com.jlf.music.controller.vo.AlbumVo">
+        SELECT
+        a.album_id AS albumId,
+        a.album_name AS albumName,
+        a.album_release_date AS albumReleaseDate,
+        a.album_bio AS albumBio,
+        a.album_cover AS albumCover,
+        t.type_name AS typeName,
+        s.singer_name AS singerName
+        FROM
+        album_info a
+        LEFT JOIN
+        singer_info s ON a.singer_id = s.singer_id
+        LEFT JOIN
+        type_info t ON a.type_id = t.type_id
+        WHERE
+        a.delete_flag = 0
+        <if test="albumQry.albumName != null and albumQry.albumName != ''">
+            AND a.album_name LIKE CONCAT('%', #{albumQry.albumName}, '%')
+        </if>
+    </select>
+    <select id="searchAlbums" resultType="com.jlf.music.controller.vo.AlbumSearchVo">
+        SELECT ai.album_id    AS albumId,
+               ai.album_name  AS albumName,
+               ai.album_cover AS albumCover,
+               si.singer_name AS singerName
+        FROM album_info ai
+                 INNER JOIN singer_info si ON ai.singer_id = si.singer_id
+        WHERE ai.album_name LIKE CONCAT('%', #{keyword}, '%')
+          AND ai.delete_flag = 0
+          AND si.delete_flag = 0
+            LIMIT #{limit}
+    </select>
+</mapper>
