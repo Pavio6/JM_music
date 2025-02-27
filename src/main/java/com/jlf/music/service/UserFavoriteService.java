@@ -10,8 +10,9 @@ import com.jlf.music.entity.UserFavorite;
 public interface UserFavoriteService extends IService<UserFavorite> {
     /**
      * 收藏/取消收藏歌曲/歌单/专辑
-     * @param targetId 目标id
-     * @param isFavorite 是否喜欢
+     *
+     * @param targetId     目标id
+     * @param isFavorite   是否喜欢
      * @param favoriteType 喜欢类型
      * @return Boolean
      */
@@ -19,8 +20,11 @@ public interface UserFavoriteService extends IService<UserFavorite> {
 
     /**
      * 获取用户的收藏歌曲列表
+     *
      * @param userId 用户id
      * @return List<SongBasicInfoVo>
      */
     IPage<SongBasicInfoVo> getFavoriteSongsList(Long userId, PageRequest pageRequest);
+
+
 }

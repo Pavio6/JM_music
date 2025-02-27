@@ -4,4 +4,5 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.jlf.music.entity.PlaylistSong;
 
 public interface PlaylistSongService extends IService<PlaylistSong> {
+
 }

@@ -254,21 +254,21 @@ public class PlaylistInfoServiceImpl extends ServiceImpl<PlaylistInfoMapper, Pla
     }
 
     /**
-     * 播放歌单
+     * 增加播放量
+     * 定期同步到数据库
      *
      * @param playlistId   歌单 ID
-     * @param songId       歌曲 ID
      * @param playDuration 播放时长
      */
     @Override
-    public Boolean incrementPlayCount(Long playlistId, Long songId, Integer playDuration) {
+    public Boolean incrementPlayCount(Long playlistId, Integer playDuration) {
         Long userId = SecurityUtils.getUserId();
         if (playDuration < PLAY_DURATION_THRESHOLD) {
             // 如果播放时长未达到阈值，则不增加播放量
             throw new ServiceException("播放时长未达到阈值, 不增加播放量");
         }
-        // 记录用户歌曲播放
-        userListeningRecordService.recordListening(songId, playDuration);
+        // TODO 暂时不记录用户播放记录
+//        userListeningRecordService.recordListening(songId, playDuration);
         // 播放量
         String playCountKey = PLAYLIST_PLAY_COUNT_KEY_PREFIX + playlistId;
         // 检查用户是否在重复播放

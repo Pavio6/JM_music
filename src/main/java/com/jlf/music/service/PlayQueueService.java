@@ -16,7 +16,7 @@ public interface PlayQueueService extends IService<PlayQueue> {
     Boolean createEmptyQueue(Long userId);
 
     /**
-     * 添加歌曲到队列开头
+     * 添加歌曲到队列
      * @param songId 歌曲id
      * @return Boolean
      */

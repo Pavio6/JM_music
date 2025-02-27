@@ -10,9 +10,7 @@ import com.jlf.music.controller.vo.SongSimpleInfoVo;
 import com.jlf.music.entity.PlayQueue;
 import com.jlf.music.entity.PlayQueueDetail;
 import com.jlf.music.exception.ServiceException;
-import com.jlf.music.mapper.PlayQueueDetailMapper;
-import com.jlf.music.mapper.PlayQueueMapper;
-import com.jlf.music.mapper.SongInfoMapper;
+import com.jlf.music.mapper.*;
 import com.jlf.music.service.PlayQueueService;
 import com.jlf.music.utils.SecurityUtils;
 import jakarta.annotation.Resource;
@@ -20,6 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Random;
 
@@ -33,6 +33,10 @@ public class PlayQueueServiceImpl extends ServiceImpl<PlayQueueMapper, PlayQueue
     private PlayQueueDetailMapper playQueueDetailMapper;
     @Resource
     private SongInfoMapper songInfoMapper;
+    @Resource
+    private PlaylistSongMapper playlistSongMapper;
+    @Resource
+    private UserFavoriteMapper userFavoriteMapper;
 
     /**
      * 创建空的播放队列
@@ -56,7 +60,7 @@ public class PlayQueueServiceImpl extends ServiceImpl<PlayQueueMapper, PlayQueue
     }
 
     /**
-     * 添加歌曲到队列开头
+     * 添加歌曲到队列
      *
      * @param songId 歌曲id
      * @return Boolean
@@ -160,13 +164,87 @@ public class PlayQueueServiceImpl extends ServiceImpl<PlayQueueMapper, PlayQueue
      * 完整队列切换操作 清空当前队列并创建新的队列
      *
      * @param queueType 播放队列类型
-     * @param sourceId  数据源id 歌单/专辑id
+     * @param sourceId  数据源id 歌单/专辑id 可为空
      * @param songId    定位播放的起始歌曲
      * @return Boolean
      */
     @Override
     public Boolean switchPlayQueue(QueueType queueType, Long sourceId, Long songId) {
-        return null;
+        // 参数校验
+        EnumSet<QueueType> allQueueTypes = EnumSet.allOf(QueueType.class);
+        if (allQueueTypes.contains(queueType)) {
+            throw new IllegalStateException("非法的队列类型");
+        }
+        if ((queueType.equals(QueueType.ALBUM) || queueType.equals(QueueType.PLAYLIST)) && sourceId == null) {
+            throw new ServiceException("专辑/歌单类型必须提供数据源id");
+        }
+        // 获取用户的播放队列
+        Long userId = SecurityUtils.getUserId();
+        PlayQueue userPlayQueue = this.getOne(new LambdaQueryWrapper<PlayQueue>()
+                .eq(PlayQueue::getUserId, userId));
+        List<PlayQueueDetail> playQueueDetails = playQueueDetailMapper.selectList(new LambdaQueryWrapper<PlayQueueDetail>()
+                .eq(PlayQueueDetail::getQueueId, userPlayQueue.getId()));
+        // 获取用户播放队列中所有歌曲id列表
+        List<Long> originalSongIds = playQueueDetails.stream()
+                .map(PlayQueueDetail::getSongId)
+                .toList();
+        // 清空当前播放队列的歌曲信息
+        playQueueDetailMapper.delete(new LambdaQueryWrapper<PlayQueueDetail>()
+                .eq(PlayQueueDetail::getQueueId, sourceId)
+                .in(PlayQueueDetail::getSongId, originalSongIds));
+        // 切换到自定义播放队列 -> 只有在向 歌单 专辑 我的喜欢 中添加其他随机歌曲时会更换为自定义播放队列
+        // 所以一般切换播放队列类型 只能为 歌单 专辑 我的喜欢
+        // 根据队列类型和sourceId获取所有歌曲
+        List<Long> newSongIds = getSongIdsByType(userId, queueType, sourceId);
+        // 插入新队列明细
+        insertQueueDetails(userPlayQueue.getId(), newSongIds);
+        // 查询当前歌曲对应的sort值
+        Integer position = playQueueDetailMapper.selectOne(new LambdaQueryWrapper<PlayQueueDetail>()
+                .eq(PlayQueueDetail::getQueueId, userPlayQueue.getId())
+                .eq(PlayQueueDetail::getSongId, songId)).getSort();
+        // 更新主记录信息
+        updateMainQueue(userPlayQueue, queueType, sourceId, position);
+        return true;
+    }
+
+    /**
+     * 更新主队列信息
+     */
+    private void updateMainQueue(PlayQueue userPlayQueue, QueueType queueType, Long sourceId, Integer position) {
+        userPlayQueue.setQueueType(queueType)
+                .setSourceId(sourceId)
+                .setCurrentIndex(position);
+        // 更新操作
+        this.updateById(userPlayQueue);
+    }
+
+    /**
+     * 根据类型获取歌曲ID列表
+     */
+    private List<Long> getSongIdsByType(Long userId, QueueType queueType, Long sourceId) {
+        return switch (queueType) {
+            case ALBUM -> songInfoMapper.getAlbumSongIds(sourceId);
+            case PLAYLIST -> playlistSongMapper.getPlaylistSongIds(sourceId);
+            case FAVORITE -> userFavoriteMapper.getFavoriteSongIds(userId);
+            default -> throw new IllegalStateException("未知的队列类型");
+        };
+    }
+
+    /**
+     * 插入队列明细
+     */
+    private void insertQueueDetails(Long queueId, List<Long> songIds) {
+        List<PlayQueueDetail> details = new ArrayList<>();
+        for (int i = 0; i < songIds.size(); i++) {
+            PlayQueueDetail detail = new PlayQueueDetail();
+            detail.setQueueId(queueId);
+            detail.setSongId(songIds.get(i));
+            detail.setSort(i);
+            details.add(detail);
+        }
+        if (!details.isEmpty()) {
+            playQueueDetailMapper.insertBatchSomeColumn(details);
+        }
     }
 
     /**

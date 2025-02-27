@@ -7,7 +7,6 @@ import com.jlf.music.common.enumerate.QueueType;
 import com.jlf.music.controller.vo.QueueStateVo;
 import com.jlf.music.entity.SongInfo;
 import com.jlf.music.exception.ServiceException;
-import com.jlf.music.mapper.SongInfoMapper;
 import com.jlf.music.service.PlayQueueService;
 import com.jlf.music.service.SongInfoService;
 import jakarta.annotation.Resource;
@@ -29,6 +28,7 @@ public class UserPlayQueueController {
     /**
      * 添加歌曲到队列 (一次只能添加一首)
      * 播放歌曲歌曲即添加
+     *
      * @param songId 歌曲id
      * @return Boolean
      */
@@ -44,6 +44,7 @@ public class UserPlayQueueController {
     /**
      * 从播放队列中批量移除歌曲
      * 如果移除的歌曲中包含正在播放的歌曲  那么播放队列的当前播放索引值将随机变为队列中某首歌
+     *
      * @param songIds 要移除的歌曲 ID 列表
      * @return Boolean
      */
@@ -76,15 +77,16 @@ public class UserPlayQueueController {
     /**
      * 切换播放队列类型
      * 完整队列切换操作 清空当前队列并创建新的队列
+     *
      * @param queueType 播放队列类型
-     * @param sourceId 数据源id 歌单/专辑id
-     * @param songId 定位播放的起始歌曲
+     * @param sourceId  数据源id 歌单/专辑id
+     * @param songId    定位播放的起始歌曲
      * @return Boolean
      */
     @PostMapping("switch/play-queue")
     public Result<Boolean> switchPlayQueue(@RequestParam QueueType queueType,
                                            @RequestParam(required = false) Long sourceId,
-                                           @RequestParam(required = false) Long songId) {
+                                           @RequestParam Long songId) {
         return Result.success(playQueueService.switchPlayQueue(queueType, sourceId, songId));
     }
 

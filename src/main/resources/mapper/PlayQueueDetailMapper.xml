@@ -21,4 +21,12 @@
         SET p1.sort = p2.new_sort
         WHERE p1.queue_id = #{queueId};
     </update>
+    <insert id="insertBatchSomeColumn" parameterType="java.util.List">
+        INSERT INTO play_queue_detail
+        (queue_id, song_id, sort)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.queueId}, #{item.songId}, #{item.sort})
+        </foreach>
+    </insert>
 </mapper>

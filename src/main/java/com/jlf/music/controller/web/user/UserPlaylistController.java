@@ -87,20 +87,19 @@ public class UserPlaylistController {
      * TODO 不知道需要不 ?
      * 播放歌单
      *
-     * @param playlistId 歌单 ID
-     * @param songId     歌曲 ID
+     * @param playlistId   歌单 ID
      * @param playDuration 播放时长
      */
     @PostMapping("/{playlistId}/play")
     public Result<Boolean> playPlaylist(@PathVariable("playlistId") Long playlistId,
-                                @RequestParam Long songId,
-                                @RequestParam Integer playDuration) {
-        return Result.success(playlistInfoService.incrementPlayCount(playlistId,songId, playDuration));
+                                        @RequestParam Integer playDuration) {
+        return Result.success(playlistInfoService.incrementPlayCount(playlistId, playDuration));
 
     }
 
     /**
      * 分页获取用户创建的歌单列表
+     *
      * @param userId 用户id
      * @return IPage<PlaylistBasicInfoVo>
      */
@@ -109,5 +108,7 @@ public class UserPlaylistController {
                                                                    PageRequest pageRequest) {
         return Result.success(playlistInfoService.getPlaylistsByUserId(userId, pageRequest));
     }
+
+
 
 }

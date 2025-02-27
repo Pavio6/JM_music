@@ -38,11 +38,12 @@ public class PlaylistPlayCountScheduler {
                 Long playlistId = Long.parseLong(key.replace(PLAYLIST_PLAY_COUNT_KEY_PREFIX, ""));
                 // 获取播放量
                 String playCountStr = stringRedisTemplate.opsForValue().get(key);
-                Long playCount = playCountStr != null ? Long.parseLong(playCountStr) : 0;
+                // 转为long类型
+                long playCount = playCountStr != null ? Long.parseLong(playCountStr) : 0;
                 // 更新数据库
                 playlistInfoService.update(new LambdaUpdateWrapper<PlaylistInfo>()
                         .eq(PlaylistInfo::getPlaylistId, playlistId)
-                        .setSql("play_count = play_count + " + playCountStr));
+                        .setSql("play_count = play_count + " + playCount));
                 // 清空 Redis 中的播放量
                 stringRedisTemplate.delete(key);
             }

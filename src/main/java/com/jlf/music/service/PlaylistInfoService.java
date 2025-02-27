@@ -15,6 +15,7 @@ import java.util.List;
 public interface PlaylistInfoService extends IService<PlaylistInfo> {
     /**
      * 创建歌单
+     *
      * @param playlistName 歌单名称
      * @return Boolean
      */
@@ -22,7 +23,8 @@ public interface PlaylistInfoService extends IService<PlaylistInfo> {
 
     /**
      * 添加歌曲到歌单中
-     * @param id 歌单ID
+     *
+     * @param id      歌单ID
      * @param songIds 歌曲ID列表
      * @return Boolean
      */
@@ -33,37 +35,43 @@ public interface PlaylistInfoService extends IService<PlaylistInfo> {
      *
      * @param id              歌单id
      * @param editPlaylistDTO 编辑的值
-     * @param playlistCover 歌单封面图
+     * @param playlistCover   歌单封面图
      * @return Boolean
      */
     Boolean editPlaylistProperties(Long id, EditPlaylistDTO editPlaylistDTO, MultipartFile playlistCover);
 
     /**
      * 分页查询歌单列表
+     *
      * @param playlistPageQry 查询参数
-     * @return IPage<List<PlaylistBasicInfoVo>>
+     * @return IPage<List < PlaylistBasicInfoVo>>
      */
     IPage<PlaylistBasicInfoVo> getPlaylistPage(PlaylistPageQry playlistPageQry);
 
     /**
      * 根据id获取歌单详细信息
+     *
      * @param playlistId 歌单id
      * @return PlaylistDetailDTO
      */
     PlaylistDetailDTO getPlaylistDetailById(Long playlistId);
+
     /**
-     * 播放歌单
+     * 增加播放量
      *
-     * @param playlistId 歌单 ID
-     * @param songId     歌曲 ID
+     * @param playlistId   歌单 ID
      * @param playDuration 播放时长
      */
-    Boolean incrementPlayCount(Long playlistId, Long songId, Integer playDuration);
+    Boolean incrementPlayCount(Long playlistId, Integer playDuration);
+
     /**
      * 分页获取用户创建的歌单列表
-     * @param userId 用户id
+     *
+     * @param userId      用户id
      * @param pageRequest 分页参数
      * @return IPage<PlaylistBasicInfoVo>
      */
     IPage<PlaylistBasicInfoVo> getPlaylistsByUserId(Long userId, PageRequest pageRequest);
+
+
 }

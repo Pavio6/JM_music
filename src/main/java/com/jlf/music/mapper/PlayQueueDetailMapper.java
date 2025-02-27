@@ -2,7 +2,6 @@ package com.jlf.music.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.jlf.music.entity.PlayQueueDetail;
-import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Update;
@@ -31,4 +30,6 @@ public interface PlayQueueDetailMapper extends BaseMapper<PlayQueueDetail> {
     void deleteBatch(@Param("queueId") Long queueId, @Param("songIds") List<Long> songIds);
 
     void updateSortAfterDeleteBatch(@Param("queueId") Long queueId);
+
+    void insertBatchSomeColumn(List<PlayQueueDetail> details);
 }

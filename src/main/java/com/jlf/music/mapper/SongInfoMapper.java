@@ -70,6 +70,7 @@ public interface SongInfoMapper extends BaseMapper<SongInfo> {
     IPage<SongBasicInfoVo> getFavoriteSongs(Page<SongBasicInfoVo> page, @Param("songIds") List<Long> songIds);
 
     List<SongSimpleInfoVo> searchSongs(@Param("keyword") String keyword, @Param("limit") Integer limit);
+
     @Select({
             "<script>",
             "SELECT ",
@@ -91,4 +92,13 @@ public interface SongInfoMapper extends BaseMapper<SongInfo> {
             "</script>"
     })
     List<SongSimpleInfoVo> selectSongDetails(@Param("songIds") List<Long> songIds);
+
+    /**
+     * 获取专辑中的所有歌曲 按歌曲插入时间降序
+     *
+     * @param sourceId 专辑id
+     * @return 歌曲ids
+     */
+    @Select("SELECT song_id FROM song_info WHERE album_id = #{sourceId} AND delete_flag = 0 ORDER BY create_time DESC ")
+    List<Long> getAlbumSongIds(@Param("sourceId") Long sourceId);
 }
