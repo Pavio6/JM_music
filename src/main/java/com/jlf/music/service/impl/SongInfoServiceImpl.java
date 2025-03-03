@@ -3,6 +3,9 @@ package com.jlf.music.service.impl;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jlf.music.controller.qry.SongQry;
 import com.jlf.music.controller.vo.SongLyricsAndAudioVo;
 import com.jlf.music.controller.vo.SongBasicInfoVo;
@@ -14,22 +17,42 @@ import com.jlf.music.service.SongInfoService;
 import com.jlf.music.utils.CopyUtils;
 import com.jlf.music.utils.MinIOPathParser;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.io.InputStreamResource;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.io.InputStream;
 import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
+import static com.jlf.music.common.constant.RedisConstant.*;
 
 @Service
+@Slf4j
 public class SongInfoServiceImpl extends ServiceImpl<SongInfoMapper, SongInfo>
         implements SongInfoService {
+    private static final Integer SONG_LIMIT = 50;
+    private static final Charset UTF_8 = StandardCharsets.UTF_8;
+    @Resource
+    private ObjectMapper objectMapper;
     @Resource
     private SongInfoMapper songInfoMapper;
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
     @Resource
     private FileService fileService;
 
@@ -105,4 +128,170 @@ public class SongInfoServiceImpl extends ServiceImpl<SongInfoMapper, SongInfo>
                 .headers(httpHeaders)
                 .body(new InputStreamResource(inputStream));
     }
+
+    /**
+     * 获取新歌榜
+     *
+     * @return 歌曲列表
+     */
+    @Override
+    public List<SongBasicInfoVo> getNewSongsWithCache() {
+        // 尝试从缓存中获取
+        String cacheData = stringRedisTemplate.opsForValue().get(NEW_SONGS_CACHE_KEY);
+        if (StringUtils.hasText(cacheData)) {
+            // 反序列化缓存中的数据
+            return deserializeSongs(cacheData);
+        }
+        // 缓存未命中 查询数据库
+        List<SongBasicInfoVo> newSongs = queryNewSongsFromDB();
+        // 异步更新缓存（不阻塞当前请求）
+        CompletableFuture.runAsync(() -> updateCache(newSongs, NEW_SONGS_CACHE_KEY));
+        return newSongs;
+    }
+
+    /**
+     * 获取热歌榜
+     *
+     * @return 歌曲列表
+     */
+    @Override
+    public List<SongBasicInfoVo> getHotSongs() {
+        String cacheDate = stringRedisTemplate.opsForValue().get(HOT_SONGS_CACHE_KEY);
+        if (StringUtils.hasText(cacheDate)) {
+            return deserializeSongs(cacheDate);
+        }
+        List<SongBasicInfoVo> hotSongs = songInfoMapper.selectHotSongs();
+        CompletableFuture.runAsync(() -> updateCache(hotSongs, HOT_SONGS_CACHE_KEY));
+        return hotSongs;
+    }
+
+    /**
+     * 记录歌曲播放量
+     */
+    @Override
+    public void recordSongPlayCount(Long songId) {
+        String dateKey = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
+        String hashKey = SONG_DAILY_KEY_PREFIX + dateKey;
+        stringRedisTemplate.opsForHash().increment(hashKey, songId.toString(), 1);
+    }
+
+    /**
+     * 获取飙升榜
+     *
+     * @return 歌曲列表
+     */
+    @Override
+    public List<SongBasicInfoVo> getRisingSongs() {
+        String cacheDate = stringRedisTemplate.opsForValue().get(RISING_SONGS_CACHE_KEY);
+        if (StringUtils.hasText(cacheDate)) {
+            return deserializeSongs(cacheDate);
+        }
+        List<SongBasicInfoVo> risingSongs = songInfoMapper.selectRisingSongs();
+        CompletableFuture.runAsync(() -> updateCache(risingSongs, RISING_SONGS_CACHE_KEY));
+        return risingSongs;
+    }
+
+    /**
+     * 查询数据库获取新歌 (最近7天, 默认100条)
+     */
+    private List<SongBasicInfoVo> queryNewSongsFromDB() {
+        // 获取七天前的日期
+        LocalDateTime startTime = LocalDateTime.now().minusDays(7);
+        return songInfoMapper.selectNewSongs(startTime, SONG_LIMIT);
+    }
+
+    /**
+     * TODO 后续添加歌曲时更新缓存使用
+     * 添加单曲到缓存（增量更新）
+     */
+    private void addSongToCache(SongInfo song) {
+        try {
+            // 获取现有缓存
+            List<SongBasicInfoVo> existing = Optional.ofNullable(stringRedisTemplate.opsForValue().get(NEW_SONGS_CACHE_KEY))
+                    .map(this::deserializeSongs)
+                    .orElseGet(ArrayList::new);
+
+            // 插入新歌并保持排序
+            insertSongInOrder(existing, song);
+
+            // 保留前50条
+            if (existing.size() > SONG_LIMIT) {
+                existing = existing.subList(0, SONG_LIMIT);
+            }
+
+            // 更新缓存
+            stringRedisTemplate.opsForValue().set(
+                    NEW_SONGS_CACHE_KEY,
+                    serializeSongs(existing),
+                    4, TimeUnit.HOURS // 重置过期时间
+            );
+        } catch (Exception e) {
+            log.error("增量更新缓存失败", e);
+        }
+    }
+
+    /**
+     * 按发布时间插入新歌
+     */
+    private void insertSongInOrder(List<SongBasicInfoVo> list, SongInfo newSong) {
+        SongBasicInfoVo newSongVo = CopyUtils.classCopy(newSong, SongBasicInfoVo.class);
+        // 如果列表为空，直接插入
+        if (list.isEmpty()) {
+            list.add(newSongVo);
+            return;
+        }
+        // 二分查找插入位置
+        int index = Collections.binarySearch(
+                list,
+                newSongVo,
+                Comparator.comparing(SongBasicInfoVo::getSongReleaseDate).reversed()
+        );
+
+        if (index < 0) {
+            index = -(index + 1);
+        }
+        list.add(index, newSongVo);
+    }
+
+    /**
+     * 更新缓存（全量替换）
+     */
+    private void updateCache(List<SongBasicInfoVo> songs, String redisKey) {
+        try {
+            // 序列化歌曲列表
+            String json = serializeSongs(songs);
+            stringRedisTemplate.opsForValue().set(
+                    redisKey,
+                    json,
+                    4, TimeUnit.HOURS // 设置4小时过期
+            );
+        } catch (Exception e) {
+            log.error("缓存更新失败", e);
+        }
+    }
+
+    /**
+     * 序列化歌曲列表
+     */
+    private String serializeSongs(List<SongBasicInfoVo> songs) throws JsonProcessingException {
+        return objectMapper.writeValueAsString(
+                songs.stream().limit(SONG_LIMIT).collect(Collectors.toList())
+        );
+    }
+
+    /**
+     * 反序列化歌曲列表
+     */
+    private List<SongBasicInfoVo> deserializeSongs(String json) {
+        try {
+            return objectMapper.readValue(json,
+                    new TypeReference<>() {
+                    });
+
+        } catch (Exception e) {
+            log.warn("缓存反序列化失败", e);
+            return Collections.emptyList();
+        }
+    }
+
 }

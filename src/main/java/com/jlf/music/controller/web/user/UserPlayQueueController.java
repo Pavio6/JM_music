@@ -27,7 +27,7 @@ public class UserPlayQueueController {
 
     /**
      * 添加歌曲到队列 (一次只能添加一首)
-     * 播放歌曲歌曲即添加
+     * 播放歌曲 即添加
      *
      * @param songId 歌曲id
      * @return Boolean
@@ -48,10 +48,20 @@ public class UserPlayQueueController {
      * @param songIds 要移除的歌曲 ID 列表
      * @return Boolean
      */
-    @DeleteMapping("/remove-songs")
+    @DeleteMapping("/batchDelete")
     public Result<Boolean> removeSongsFromQueue(@RequestParam("songIds") List<Long> songIds) {
         return Result.success(playQueueService.removeSongsFromQueue(songIds));
     }
+
+    /**
+     * 清空当前用户队列信息
+     * @return Boolean
+     */
+    @DeleteMapping("/clearAll")
+    public Result<Boolean> clearAll() {
+        return Result.success(playQueueService.clearAll());
+    }
+
 
     /**
      * 切换播放模式
@@ -83,7 +93,7 @@ public class UserPlayQueueController {
      * @param songId    定位播放的起始歌曲
      * @return Boolean
      */
-    @PostMapping("switch/play-queue")
+    @PostMapping("/switch")
     public Result<Boolean> switchPlayQueue(@RequestParam QueueType queueType,
                                            @RequestParam(required = false) Long sourceId,
                                            @RequestParam Long songId) {

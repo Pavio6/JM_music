@@ -14,6 +14,7 @@ import java.util.List;
 public interface SongInfoService extends IService<SongInfo> {
     /**
      * 分页或通过名称模糊查询歌曲信息
+     *
      * @param songQry 分页参数
      * @return songVo
      */
@@ -21,12 +22,14 @@ public interface SongInfoService extends IService<SongInfo> {
 
     /**
      * 获取最近的歌曲信息
+     *
      * @return List<SongBasicInfoVo>
      */
     List<SongBasicInfoVo> getLatestSongs();
 
     /**
      * 根据songId获取歌曲音频和歌词文件url
+     *
      * @param songId 歌曲ID
      * @return SongLyricsAndAudioVo
      */
@@ -34,8 +37,36 @@ public interface SongInfoService extends IService<SongInfo> {
 
     /**
      * 下载歌曲
+     *
      * @param songId 歌曲id
      * @return ResponseEntity<InputStreamResource>
      */
     ResponseEntity<InputStreamResource> downloadSong(Long songId);
+
+    /**
+     * 获取新歌榜
+     *
+     * @return 歌曲列表
+     */
+    List<SongBasicInfoVo> getNewSongsWithCache();
+
+    /**
+     * 获取热歌榜
+     *
+     * @return 歌曲列表
+     */
+    List<SongBasicInfoVo> getHotSongs();
+
+    /**
+     * 记录歌曲播放量
+     */
+    void recordSongPlayCount(Long songId);
+
+    /**
+     * 获取飙升榜
+     *
+     * @return 歌曲列表
+     */
+    List<SongBasicInfoVo> getRisingSongs();
+
 }

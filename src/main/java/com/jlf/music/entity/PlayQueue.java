@@ -24,7 +24,8 @@ public class PlayQueue {
     /**
      * 专辑/歌单id
      */
-    @TableField("source_id")
+    // FieldStrategy.IGNORED  忽略字段是否为 null, 始终更新
+    @TableField(value = "source_id", updateStrategy = FieldStrategy.IGNORED)
     private Long sourceId;
     /**
      * 当前播放索引

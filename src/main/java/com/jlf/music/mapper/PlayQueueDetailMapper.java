@@ -22,13 +22,18 @@ public interface PlayQueueDetailMapper extends BaseMapper<PlayQueueDetail> {
             "  AND sort >= #{insertSort} " +
             "  AND delete_flag = 0")
     void updateSortAfterInsert(@Param("queueId") Long queueId, @Param("insertPosition") Integer insertPosition);
+
     /**
      * 批量物理删除播放队列详情记录
+     *
      * @param queueId 队列 ID
      * @param songIds 要删除的歌曲 ID 列表
      */
     void deleteBatch(@Param("queueId") Long queueId, @Param("songIds") List<Long> songIds);
 
+    /**
+     * 调整删除歌曲后播放队列的顺序
+     */
     void updateSortAfterDeleteBatch(@Param("queueId") Long queueId);
 
     void insertBatchSomeColumn(List<PlayQueueDetail> details);

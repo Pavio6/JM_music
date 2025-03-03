@@ -18,10 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Random;
+import java.lang.reflect.Array;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -65,7 +63,7 @@ public class PlayQueueServiceImpl extends ServiceImpl<PlayQueueMapper, PlayQueue
      * @param songId 歌曲id
      * @return Boolean
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public Boolean addSongToFront(Long songId) {
         Long userId = SecurityUtils.getUserId();
@@ -75,23 +73,26 @@ public class PlayQueueServiceImpl extends ServiceImpl<PlayQueueMapper, PlayQueue
         if (userPlayQueue == null) {
             throw new ServiceException("用户没有播放队列");
         }
+        // 初始化更新构造器
+        LambdaUpdateWrapper<PlayQueue> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(PlayQueue::getUserId, userId);
         // 如果当前不是自定义队列，转换为自定义队列
         if (!userPlayQueue.getQueueType().equals(QueueType.CUSTOM)) {
-            userPlayQueue.setQueueType(QueueType.CUSTOM)
-                    .setSourceId(null);
-            this.updateById(userPlayQueue);
+            updateWrapper.set(PlayQueue::getQueueType, QueueType.CUSTOM);
         }
         // 播放队列为空
-        if (playQueueDetailMapper.selectCount(new LambdaQueryWrapper<PlayQueueDetail>()
-                .eq(PlayQueueDetail::getQueueId, userPlayQueue.getId())) == 0L) {
+        // 直接插入记录 并返回
+        if (playQueueDetailMapper.selectList(new LambdaQueryWrapper<PlayQueueDetail>()
+                .eq(PlayQueueDetail::getQueueId, userPlayQueue.getId())).isEmpty()) {
             PlayQueueDetail playQueueDetail = new PlayQueueDetail()
                     .setQueueId(userPlayQueue.getId())
                     .setSongId(songId)
                     .setSort(0);
             playQueueDetailMapper.insert(playQueueDetail);
+            return true;
         }
         // 不为空
-        // 新歌所处的位置
+        // 找出新歌所处的位置
         Integer insertPosition = userPlayQueue.getCurrentIndex() + 1;
         // 调整排序
         playQueueDetailMapper.update(null, new LambdaUpdateWrapper<PlayQueueDetail>()
@@ -105,9 +106,8 @@ public class PlayQueueServiceImpl extends ServiceImpl<PlayQueueMapper, PlayQueue
                 .setSort(insertPosition);
         playQueueDetailMapper.insert(detail);
         // 更新play_queue的currentIndex值
-        return this.update(new LambdaUpdateWrapper<PlayQueue>()
-                .set(PlayQueue::getCurrentIndex, insertPosition)
-                .eq(PlayQueue::getId, userPlayQueue.getId()));
+        updateWrapper.set(PlayQueue::getCurrentIndex, insertPosition);
+        return this.update(updateWrapper);
     }
 
     /**
@@ -169,10 +169,11 @@ public class PlayQueueServiceImpl extends ServiceImpl<PlayQueueMapper, PlayQueue
      * @return Boolean
      */
     @Override
+    @Transactional(rollbackFor = Exception.class) // 所有异常都会触发回滚
     public Boolean switchPlayQueue(QueueType queueType, Long sourceId, Long songId) {
         // 参数校验
         EnumSet<QueueType> allQueueTypes = EnumSet.allOf(QueueType.class);
-        if (allQueueTypes.contains(queueType)) {
+        if (!allQueueTypes.contains(queueType)) {
             throw new IllegalStateException("非法的队列类型");
         }
         if ((queueType.equals(QueueType.ALBUM) || queueType.equals(QueueType.PLAYLIST)) && sourceId == null) {
@@ -182,16 +183,21 @@ public class PlayQueueServiceImpl extends ServiceImpl<PlayQueueMapper, PlayQueue
         Long userId = SecurityUtils.getUserId();
         PlayQueue userPlayQueue = this.getOne(new LambdaQueryWrapper<PlayQueue>()
                 .eq(PlayQueue::getUserId, userId));
+        if (userPlayQueue == null) {
+            throw new ServiceException("用户没有播放队列");
+        }
         List<PlayQueueDetail> playQueueDetails = playQueueDetailMapper.selectList(new LambdaQueryWrapper<PlayQueueDetail>()
                 .eq(PlayQueueDetail::getQueueId, userPlayQueue.getId()));
         // 获取用户播放队列中所有歌曲id列表
         List<Long> originalSongIds = playQueueDetails.stream()
                 .map(PlayQueueDetail::getSongId)
                 .toList();
-        // 清空当前播放队列的歌曲信息
-        playQueueDetailMapper.delete(new LambdaQueryWrapper<PlayQueueDetail>()
-                .eq(PlayQueueDetail::getQueueId, sourceId)
-                .in(PlayQueueDetail::getSongId, originalSongIds));
+        // 清空当前播放队列的歌曲信息（如果存在）
+        if (!playQueueDetails.isEmpty()) {
+            playQueueDetailMapper.delete(new LambdaQueryWrapper<PlayQueueDetail>()
+                    .eq(PlayQueueDetail::getQueueId, userPlayQueue.getId())
+                    .in(PlayQueueDetail::getSongId, originalSongIds));
+        }
         // 切换到自定义播放队列 -> 只有在向 歌单 专辑 我的喜欢 中添加其他随机歌曲时会更换为自定义播放队列
         // 所以一般切换播放队列类型 只能为 歌单 专辑 我的喜欢
         // 根据队列类型和sourceId获取所有歌曲
@@ -254,6 +260,7 @@ public class PlayQueueServiceImpl extends ServiceImpl<PlayQueueMapper, PlayQueue
      * @return Boolean
      */
     @Override
+    @Transactional(rollbackFor = Exception.class) // 所有异常都会触发回滚
     public Boolean removeSongsFromQueue(List<Long> songIds) {
         if (songIds == null || songIds.isEmpty()) {
             return false;
@@ -263,13 +270,12 @@ public class PlayQueueServiceImpl extends ServiceImpl<PlayQueueMapper, PlayQueue
                 .eq(PlayQueue::getUserId, SecurityUtils.getUserId()));
         // 获取播放队列id
         Long queueId = userPlayQueue.getId();
-
         // 获取当前播放索引
         Integer currentIndex = userPlayQueue.getCurrentIndex();
-        // 获取当前播放索引对应的歌曲id
         PlayQueueDetail detail = playQueueDetailMapper.selectOne(new LambdaQueryWrapper<PlayQueueDetail>()
                 .eq(PlayQueueDetail::getQueueId, queueId)
                 .eq(PlayQueueDetail::getSort, currentIndex));
+        // 获取当前播放索引对应的歌曲id
         Long songId = detail.getSongId();
         // 删除指定歌曲列表
         playQueueDetailMapper.delete(new LambdaQueryWrapper<PlayQueueDetail>()
@@ -277,8 +283,7 @@ public class PlayQueueServiceImpl extends ServiceImpl<PlayQueueMapper, PlayQueue
                 .in(PlayQueueDetail::getSongId, songIds));
         // 调整播放列表中歌曲sort值
         playQueueDetailMapper.updateSortAfterDeleteBatch(queueId);
-
-        // 判断删除的歌曲列表中是否包含当前播放的歌曲索引值
+        // 判断删除的歌曲列表中是否包含当前播放的歌曲
         if (songIds.contains(songId)) {
             // 获取用户歌单列表剩余的歌曲数量
             Long count = playQueueDetailMapper.selectCount(new LambdaQueryWrapper<PlayQueueDetail>()
@@ -287,13 +292,57 @@ public class PlayQueueServiceImpl extends ServiceImpl<PlayQueueMapper, PlayQueue
             if (count == 0) {
                 // 设置当前索引值为0
                 userPlayQueue.setCurrentIndex(0);
-                playQueueMapper.updateById(userPlayQueue);
+                userPlayQueue.setSourceId(null);
+            } else {
+                // 随机设置一个剩余歌曲的索引值
+                Random random = new Random();
+                int position = random.nextInt(count.intValue());
+                // 获取当前位置的歌曲id
+                Long newSongId = playQueueDetailMapper.selectOne(new LambdaQueryWrapper<PlayQueueDetail>()
+                        .eq(PlayQueueDetail::getQueueId, queueId)
+                        .eq(PlayQueueDetail::getSort, position)).getSongId();
+                userPlayQueue.setCurrentIndex(position);
+                userPlayQueue.setSourceId(newSongId);
             }
-            // 随机设置一个剩余歌曲的索引值
-            Random random = new Random();
-            userPlayQueue.setCurrentIndex(random.nextInt(count.intValue()));
+        } else {
+            // 获取播放队列的歌曲id
+            Long sourceId = userPlayQueue.getSourceId();
+            // 获取当前播放歌曲的索引值
+            Integer sort = playQueueDetailMapper.selectOne(new LambdaQueryWrapper<PlayQueueDetail>()
+                    .eq(PlayQueueDetail::getQueueId, queueId)
+                    .eq(PlayQueueDetail::getSongId, sourceId)).getSort();
+            // 播放队列修改为自定义
+            userPlayQueue.setQueueType(QueueType.CUSTOM);
+            // 当前播放歌曲的索引有可能修改
+            userPlayQueue.setCurrentIndex(sort);
+            // 执行更新操作
             playQueueMapper.updateById(userPlayQueue);
         }
+        return true;
+    }
+
+    /**
+     * 清空当前用户队列信息
+     *
+     * @return Boolean
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class) // 所有异常都会触发回滚
+    public Boolean clearAll() {
+        // 获取当前用户id
+        Long userId = SecurityUtils.getUserId();
+        PlayQueue playQueue = playQueueMapper.selectOne(new LambdaQueryWrapper<PlayQueue>().eq(PlayQueue::getUserId, userId));
+        // 获取当前用户的队列id
+        Long queueId = playQueue.getId();
+        // 删除用户播放队列信息
+        playQueueDetailMapper.delete(
+                new LambdaQueryWrapper<PlayQueueDetail>().eq(PlayQueueDetail::getQueueId, queueId)
+        );
+        // 更新主队列的信息
+        playQueueMapper.updateById(playQueue
+                .setQueueType(QueueType.CUSTOM)
+                .setSourceId(null)
+                .setCurrentIndex(0));
         return true;
     }
 }

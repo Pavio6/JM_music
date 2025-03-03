@@ -48,6 +48,7 @@
         AND si.delete_flag = 0
         AND ai.delete_flag = 0
     </select>
+    <!--  查询歌曲  -->
     <select id="searchSongs" resultType="com.jlf.music.controller.vo.SongSimpleInfoVo">
         SELECT si.song_id      AS songId,
                si.song_name    AS songName,
@@ -61,5 +62,97 @@
           AND si.delete_flag = 0
         ORDER BY si.create_time DESC
             LIMIT #{limit}
+    </select>
+
+    <!-- 热歌榜查询 -->
+    <select id="selectHotSongs" resultType="com.jlf.music.controller.vo.SongBasicInfoVo">
+        SELECT s.song_id           AS songId,
+               s.song_name         AS songName,
+               si.singer_id        AS singerId,
+               si.singer_name      AS singerName,
+               s.song_duration     AS songDuration,
+               s.song_cover        AS songCover,
+               s.song_release_date AS songReleaseDate,
+               a.album_id          AS albumId,
+               a.album_name        AS albumName
+        FROM song_info s
+                 LEFT JOIN singer_info si
+                           ON s.singer_id = si.singer_id
+                               AND si.delete_flag = 0
+                 LEFT JOIN album_info a
+                           ON s.album_id = a.album_id
+                               AND a.delete_flag = 0
+        WHERE s.delete_flag = 0
+        ORDER BY s.play_count DESC LIMIT 50
+    </select>
+
+    <!-- 查询飙升榜 -->
+    <select id="selectRisingSongs" resultType="com.jlf.music.controller.vo.SongBasicInfoVo">
+        -- 查询歌曲飙升榜记录，按增长率降序排列，最多返回50条记录
+        SELECT s.song_id           AS songId,          -- 歌曲ID
+               s.song_name         AS songName,        -- 歌曲名称
+               si.singer_id        AS singerId,        -- 歌手ID
+               si.singer_name      AS singerName,      -- 歌手名称
+               s.song_duration     AS songDuration,    -- 歌曲时长
+               s.song_cover        AS songCover,       -- 歌曲封面
+               s.song_release_date AS songReleaseDate, -- 歌曲发布日期
+               a.album_id          AS albumId,         -- 专辑ID
+               a.album_name        AS albumName        -- 专辑名称
+        FROM song_info s
+                 LEFT JOIN
+             singer_info si
+             ON s.singer_id = si.singer_id
+                 AND si.delete_flag = 0 -- 关联歌手信息，且歌手未被删除
+                 LEFT JOIN
+             album_info a
+             ON s.album_id = a.album_id
+                 AND a.delete_flag = 0 -- 关联专辑信息，且专辑未被删除
+                 LEFT JOIN
+             song_play_daily yesterday
+             ON s.song_id = yesterday.song_id
+                 AND yesterday.`date` = DATE_SUB(CURDATE(), INTERVAL 1 DAY) -- 关联昨天播放量
+                 LEFT JOIN
+             song_play_daily two_days_ago
+             ON s.song_id = two_days_ago.song_id
+                 AND two_days_ago.`date` = DATE_SUB(CURDATE(), INTERVAL 2 DAY) -- 关联前天播放量
+        WHERE s.delete_flag = 0                     -- 只查询未被删除的歌曲
+          AND (yesterday.play_count IS NOT NULL
+            OR two_days_ago.play_count IS NOT NULL) -- 确保昨天或前天的播放量数据存在
+        ORDER BY (COALESCE(yesterday.play_count, 0) - COALESCE(two_days_ago.play_count, 0)) DESC -- 按增长率降序排列
+            LIMIT
+        50 -- 最多返回50条记录
+    </select>
+    <!--  获取播放列表歌曲信息  -->
+    <select id="selectSongDetails" resultType="com.jlf.music.controller.vo.SongSimpleInfoVo">
+        SELECT
+        si.song_id AS songId,
+        si.song_name AS songName,
+        si.song_cover AS songCover,
+        sin.singer_name AS singerName
+        FROM
+        song_info si
+        LEFT JOIN
+        singer_info sin
+        ON si.singer_id = sin.singer_id
+        AND sin.delete_flag = 0
+        WHERE
+        si.delete_flag = 0
+        <if test="songIds != null and !songIds.isEmpty()">
+            AND si.song_id IN
+            <foreach collection="songIds" item="songId" open="(" separator="," close=")">
+                #{songId}
+            </foreach>
+        </if>
+        ORDER BY
+        <if test="songIds != null and !songIds.isEmpty()">
+            FIELD(si.song_id,
+            <foreach collection="songIds" item="songId" separator=",">
+                #{songId}
+            </foreach>
+            )
+        </if>
+        <if test="songIds == null or songIds.isEmpty()">
+            si.song_id DESC
+        </if>
     </select>
 </mapper>

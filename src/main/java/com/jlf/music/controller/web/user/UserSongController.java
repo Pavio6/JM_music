@@ -1,10 +1,13 @@
 package com.jlf.music.controller.web.user;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.jlf.music.common.PageRequest;
 import com.jlf.music.common.Result;
 import com.jlf.music.controller.vo.SongBasicInfoVo;
 import com.jlf.music.controller.vo.SongLyricsAndAudioVo;
 import com.jlf.music.service.SongInfoService;
 import jakarta.annotation.Resource;
+import jakarta.validation.constraints.Max;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -32,6 +35,7 @@ public class UserSongController {
 
     /**
      * 根据歌曲ID查询歌曲音频歌词文件URL
+     * TODO 应该是为了播放音乐 此时可以记录音乐的播放量
      *
      * @return 音频文件URL
      */
@@ -52,5 +56,36 @@ public class UserSongController {
 
     }
 
+    /**
+     * 获取新歌榜
+     *
+     * @return 歌曲列表
+     */
+    @GetMapping("/new")
+    public Result<List<SongBasicInfoVo>> getNewSongs() {
 
+        return Result.success(songInfoService.getNewSongsWithCache());
+    }
+
+    /**
+     * 获取热歌榜
+     *
+     * @return 歌曲列表
+     */
+    @GetMapping("/hot")
+    public Result<List<SongBasicInfoVo>> getHotSongs() {
+
+        return Result.success(songInfoService.getHotSongs());
+    }
+
+    /**
+     * 获取飙升榜
+     *
+     * @return 歌曲列表
+     */
+    @GetMapping("/rising")
+    public Result<List<SongBasicInfoVo>> getRisingSongs() {
+
+        return Result.success(songInfoService.getRisingSongs());
+    }
 }

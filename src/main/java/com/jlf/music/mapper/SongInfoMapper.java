@@ -11,6 +11,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Mapper
@@ -71,26 +72,11 @@ public interface SongInfoMapper extends BaseMapper<SongInfo> {
 
     List<SongSimpleInfoVo> searchSongs(@Param("keyword") String keyword, @Param("limit") Integer limit);
 
-    @Select({
-            "<script>",
-            "SELECT ",
-            "   si.song_id AS songId, ",
-            "   si.song_name AS songName, ",
-            "   si.song_cover AS songCover, ",
-            "   sin.singer_name AS singerName ",
-            "FROM ",
-            "   song_info si ",
-            "LEFT JOIN ",
-            "   singer_info sin ON si.singer_id = sin.singer_id ",
-            "WHERE ",
-            "   si.delete_flag = 0 ",
-            "   AND sin.delete_flag = 0 ",
-            "   AND si.song_id IN ",
-            "   <foreach collection='songIds' item='songId' open='(' separator=',' close=')'>",
-            "       #{songId}",
-            "   </foreach>",
-            "</script>"
-    })
+    /**
+     * 获取播放列表歌曲信息
+     * @param songIds 歌曲ids
+     * @return SongSimpleInfoVo
+     */
     List<SongSimpleInfoVo> selectSongDetails(@Param("songIds") List<Long> songIds);
 
     /**
@@ -101,4 +87,32 @@ public interface SongInfoMapper extends BaseMapper<SongInfo> {
      */
     @Select("SELECT song_id FROM song_info WHERE album_id = #{sourceId} AND delete_flag = 0 ORDER BY create_time DESC ")
     List<Long> getAlbumSongIds(@Param("sourceId") Long sourceId);
+
+    /**
+     * 获取热歌榜
+     *
+     * @return 歌曲列表
+     */
+    List<SongBasicInfoVo> selectHotSongs();
+
+    /**
+     * 获取新歌榜
+     */
+    @Select("SELECT s.song_id AS songId, s.song_name AS songName, s.song_duration AS songDuration, " +
+            "s.song_cover AS songCover, s.song_release_date AS songReleaseDate, " +
+            "si.singer_id as singerId, si.singer_name AS singerName,a.album_id as albumId, a.album_name AS albumName " +
+            "FROM song_info s " +
+            "LEFT JOIN singer_info si ON s.singer_id = si.singer_id AND si.delete_flag = 0 " +
+            "LEFT JOIN album_info a ON s.album_id = a.album_id AND a.delete_flag = 0 " +
+            "WHERE s.song_release_date >= #{startTime} AND s.delete_flag = 0 " +
+            "ORDER BY s.song_release_date DESC " +
+            "LIMIT #{limit}")
+    List<SongBasicInfoVo> selectNewSongs(@Param("startTime") LocalDateTime startTime, @Param("limit") int limit);
+
+    /**
+     * 获取飙升榜
+     *
+     * @return 歌曲列表
+     */
+    List<SongBasicInfoVo> selectRisingSongs();
 }

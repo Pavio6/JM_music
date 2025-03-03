@@ -18,7 +18,7 @@ import java.util.List;
  * 用户歌单控制层
  */
 @RestController
-@RequestMapping("api/user/playlist")
+@RequestMapping("/api/user/playlist")
 public class UserPlaylistController {
     @Resource
     private PlaylistInfoService playlistInfoService;

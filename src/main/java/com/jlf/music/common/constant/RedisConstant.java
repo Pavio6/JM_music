@@ -44,6 +44,21 @@ public class RedisConstant {
      * 用户歌曲排名
      */
     public static final String SONG_RANKING_KEY_PREFIX = "user:song:ranking:";
-
+    /**
+     * 新歌榜key
+     */
+    public static final String NEW_SONGS_CACHE_KEY = "newSongs:";
+    /**
+     * 热歌榜key
+     */
+    public static final String HOT_SONGS_CACHE_KEY = "hotSongs:";
+    /**
+     * 飙升榜key
+     */
+    public static final String RISING_SONGS_CACHE_KEY = "risingSongs:";
+    /**
+     * 歌曲日播放量key
+     */
+    public static final String SONG_DAILY_KEY_PREFIX = "song:daily:";
 
 }

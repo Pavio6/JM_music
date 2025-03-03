@@ -29,6 +29,10 @@ public class SongInfo implements Serializable {
     private String songCover;
     private Long singerId;
     private Long albumId;
+    /**
+     * 衰减后的播放量
+     */
+    private Double playCount;
     @TableField(fill = FieldFill.INSERT)
     private Date createTime;
     @TableField(fill = FieldFill.INSERT_UPDATE)

@@ -14,11 +14,11 @@ import java.util.Set;
 import static com.jlf.music.common.constant.PlaylistConstant.PLAYLIST_PLAY_COUNT_KEY_PREFIX;
 
 /**
- * 歌单播放量task
+ * 歌单 Scheduler
  */
 @Slf4j
 @Component
-public class PlaylistPlayCountScheduler {
+public class PlaylistScheduler {
     @Resource
     private StringRedisTemplate stringRedisTemplate;
     @Resource

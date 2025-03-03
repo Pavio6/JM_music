@@ -51,4 +51,11 @@ public interface PlayQueueService extends IService<PlayQueue> {
      * @return Boolean
      */
     Boolean removeSongsFromQueue(List<Long> songIds);
+
+    /**
+     * 清空当前用户队列信息
+     * @return Boolean
+     */
+    Boolean clearAll();
+
 }

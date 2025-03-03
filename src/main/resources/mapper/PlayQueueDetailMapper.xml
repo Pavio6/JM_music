@@ -13,14 +13,15 @@
         </foreach>
     </delete>
     <!--  对删除后列表中的歌曲重新排序  -->
-    <update id="updateSortAfterDelete">
+    <update id="updateSortAfterDeleteBatch">
         UPDATE play_queue_detail p1
-            JOIN (SELECT id, ROW_NUMBER() OVER (PARTITION BY queue_id ORDER BY sort) as new_sort
+            JOIN (SELECT id, (ROW_NUMBER() OVER (PARTITION BY queue_id ORDER BY sort) - 1) as new_sort
                   FROM play_queue_detail
                   WHERE queue_id = #{queueId}) p2 ON p1.id = p2.id
         SET p1.sort = p2.new_sort
         WHERE p1.queue_id = #{queueId};
     </update>
+
     <insert id="insertBatchSomeColumn" parameterType="java.util.List">
         INSERT INTO play_queue_detail
         (queue_id, song_id, sort)

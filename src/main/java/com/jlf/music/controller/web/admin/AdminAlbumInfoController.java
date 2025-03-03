@@ -20,8 +20,10 @@ public class AdminAlbumInfoController {
     @Resource
     private AlbumInfoService albumInfoService;
 
+
     /**
      * 分页或通过名称模糊查询album
+     *
      * @param albumQry 专辑名称和分页参数
      * @return AlbumVo
      */
@@ -32,6 +34,7 @@ public class AdminAlbumInfoController {
 
     /**
      * 根据专辑ID获取专辑中所有歌曲
+     *
      * @param albumId 专辑ID
      * @return songVo
      */

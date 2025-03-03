@@ -13,7 +13,7 @@
     <version>1.0-SNAPSHOT</version>
     <name>JM_music</name>
     <description>JM_Music Website</description>
-
+    <packaging>jar</packaging>
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
@@ -31,6 +31,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
             <version>3.0.6</version>
+        </dependency>
+        <!--    Spring Cache    -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
         </dependency>
         <!--    参数校验    -->
         <dependency>
@@ -57,7 +62,6 @@
             <version>1.9.22.1</version>
             <scope>runtime</scope>
         </dependency>
-
         <dependency>
             <groupId>org.aspectj</groupId>
             <artifactId>aspectjrt</artifactId>
@@ -70,7 +74,7 @@
             <artifactId>spring-aop</artifactId>
             <version>6.0.8</version>
         </dependency>
-        <!--SpringBoot 集成 Mybatis-Plus-->
+        <!--Mybatis-Plus-->
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
@@ -94,6 +98,13 @@
             <artifactId>lombok</artifactId>
             <version>1.18.28</version>
         </dependency>
+        <!-- jackson-datatype -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>2.14.2</version>
+        </dependency>
+
         <!--EasyCaptcha图形验证码-->
         <dependency>
             <groupId>com.github.whvcse</groupId>
@@ -135,6 +146,7 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>3.0.6</version>
                 <configuration>
                     <excludes>
                         <exclude>
