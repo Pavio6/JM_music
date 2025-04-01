@@ -10,7 +10,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
 @RestController
-@RequestMapping("/common")
+@RequestMapping("/common/file")
 public class FileController {
     @Resource
     private FileService fileService;

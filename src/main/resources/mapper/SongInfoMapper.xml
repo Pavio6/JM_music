@@ -10,18 +10,34 @@
         s.song_name AS songName,
         s.song_duration AS songDuration,
         s.song_cover AS songCover,
+        s.song_release_date AS songReleaseDate,
+        s.song_lyrics AS songLyrics,
+        s.song_file_path AS songFilePath,
+        s.create_time AS createTime,
+        s.update_time AS updateTime,
+        si.singer_id AS singerId,
         si.singer_name AS singerName,
-        ai.album_name AS albumName
+        ai.album_id AS albumId,
+        ai.album_name AS albumName,
+        sm.mv_id AS mvId
         FROM
         song_info s
         LEFT JOIN
-        singer_info si ON s.singer_id = si.singer_id
+        song_mv sm ON s.song_id = sm.song_id AND sm.delete_flag = 0
         LEFT JOIN
-        album_info ai ON s.album_id = ai.album_id
+        singer_info si ON s.singer_id = si.singer_id AND si.delete_flag = 0
+        LEFT JOIN
+        album_info ai ON s.album_id = ai.album_id AND ai.delete_flag = 0
         WHERE
         s.delete_flag = 0
         <if test="songQry.songName != null and songQry.songName != ''">
             AND s.song_name LIKE CONCAT('%', #{songQry.songName}, '%')
+        </if>
+        <if test="songQry.singerId != null">
+            AND si.singer_id = #{songQry.singerId}
+        </if>
+        <if test="songQry.albumId != null">
+            AND ai.album_id = #{songQry.albumId}
         </if>
     </select>
     <!--  分页查询用户喜欢的歌曲列表  -->
@@ -31,22 +47,38 @@
         s.song_name AS songName,
         s.song_duration AS songDuration,
         s.song_cover AS songCover,
+        s.song_release_date AS songReleaseDate,
+        si.singer_id AS singId,
         si.singer_name AS singerName,
-        ai.album_name AS albumName
+        ai.album_id AS albumId,
+        ai.album_name AS albumName,
+        sm.mv_id as mvId
         FROM
         song_info s
-        left JOIN
-        singer_info si ON s.singer_id = si.singer_id
-        left JOIN
-        album_info ai ON s.album_id = ai.album_id
+        LEFT JOIN
+        singer_info si ON s.singer_id = si.singer_id AND si.delete_flag = 0
+        LEFT JOIN
+        album_info ai ON s.album_id = ai.album_id AND ai.delete_flag = 0
+        LEFT JOIN
+        song_mv sm ON s.song_id = sm.song_id AND sm.delete_flag = 0
         WHERE
-        s.song_id IN
-        <foreach item="item" collection="songIds" open="(" separator="," close=")">
-            #{item}
-        </foreach>
-        AND s.delete_flag = 0
-        AND si.delete_flag = 0
-        AND ai.delete_flag = 0
+        s.delete_flag = 0
+        <if test="songIds != null and songIds.size() > 0">
+            AND s.song_id IN
+            <foreach item="item" collection="songIds" open="(" separator="," close=")">
+                #{item}
+            </foreach>
+
+            <!-- 只有在有songIds时才添加排序 -->
+            ORDER BY FIELD(s.song_id,
+            <foreach item="item" collection="songIds" separator=",">
+                #{item}
+            </foreach>
+            )
+        </if>
+        <if test="songIds == null or songIds.size() == 0">
+            AND 1=2
+        </if>
     </select>
     <!--  查询歌曲  -->
     <select id="searchSongs" resultType="com.jlf.music.controller.vo.SongSimpleInfoVo">
@@ -74,7 +106,8 @@
                s.song_cover        AS songCover,
                s.song_release_date AS songReleaseDate,
                a.album_id          AS albumId,
-               a.album_name        AS albumName
+               a.album_name        AS albumName,
+               sm.mv_id            AS mvId
         FROM song_info s
                  LEFT JOIN singer_info si
                            ON s.singer_id = si.singer_id
@@ -82,6 +115,8 @@
                  LEFT JOIN album_info a
                            ON s.album_id = a.album_id
                                AND a.delete_flag = 0
+                 left join song_mv sm
+                           on s.song_id = sm.song_id and sm.delete_flag = 0
         WHERE s.delete_flag = 0
         ORDER BY s.play_count DESC LIMIT 50
     </select>
@@ -89,16 +124,18 @@
     <!-- 查询飙升榜 -->
     <select id="selectRisingSongs" resultType="com.jlf.music.controller.vo.SongBasicInfoVo">
         -- 查询歌曲飙升榜记录，按增长率降序排列，最多返回50条记录
-        SELECT s.song_id           AS songId,          -- 歌曲ID
-               s.song_name         AS songName,        -- 歌曲名称
-               si.singer_id        AS singerId,        -- 歌手ID
-               si.singer_name      AS singerName,      -- 歌手名称
-               s.song_duration     AS songDuration,    -- 歌曲时长
-               s.song_cover        AS songCover,       -- 歌曲封面
-               s.song_release_date AS songReleaseDate, -- 歌曲发布日期
-               a.album_id          AS albumId,         -- 专辑ID
-               a.album_name        AS albumName        -- 专辑名称
+        SELECT s.song_id           AS songId,
+               s.song_name         AS songName,
+               si.singer_id        AS singerId,
+               si.singer_name      AS singerName,
+               s.song_duration     AS songDuration,
+               s.song_cover        AS songCover,
+               s.song_release_date AS songReleaseDate,
+               a.album_id          AS albumId,
+               a.album_name        AS albumName,
+               sm.mv_id            AS mvId
         FROM song_info s
+                 left join song_mv sm on sm.song_id = s.song_id and delete_flag = 0
                  LEFT JOIN
              singer_info si
              ON s.singer_id = si.singer_id
@@ -154,5 +191,79 @@
         <if test="songIds == null or songIds.isEmpty()">
             si.song_id DESC
         </if>
+    </select>
+    <!--  根据歌手id获取歌曲列表  -->
+    <select id="selectTopSongsBySingerId" resultType="com.jlf.music.controller.vo.SongBasicInfoVo">
+        SELECT s.song_id,
+               s.song_name,
+               s.song_duration,
+               s.song_cover,
+               s.song_release_date,
+               s.singer_id,
+               si.singer_name,
+               s.album_id,
+               a.album_name
+        FROM song_info s
+                 JOIN
+             singer_info si ON s.singer_id = si.singer_id
+                 JOIN
+             album_info a ON s.album_id = a.album_id
+        WHERE s.singer_id = #{singerId}
+          AND s.delete_flag = 0
+          AND si.delete_flag = 0
+          AND a.delete_flag = 0
+        ORDER BY s.play_count DESC LIMIT 10
+    </select>
+    <!-- 根据专辑 ID 查询歌曲基本信息 -->
+    <select id="getSongsByAlbumId" resultType="com.jlf.music.controller.vo.SongBasicInfoVo">
+        SELECT
+            s.song_id           AS songId,
+            s.song_name         AS songName,
+            s.song_duration     AS songDuration,
+            s.song_release_date AS songReleaseDate,
+            s.song_cover        AS songCover,
+            s.song_file_path    AS songFilePath,
+            s.song_lyrics       AS songLyrics,
+            s.singer_id         AS singerId,
+            si.singer_name      AS singerName,
+            s.album_id          AS albumId,
+            ai.album_name       AS albumName,
+            sm.mv_id            AS mvId,
+            s.play_count        AS playCount,
+            s.create_time       AS createTime,
+            s.update_time       AS updateTime
+        FROM song_info s
+                 LEFT JOIN
+             singer_info si ON s.singer_id = si.singer_id AND si.delete_flag = 0
+                 LEFT JOIN
+             song_mv sm ON s.song_id = sm.song_id AND sm.delete_flag = 0
+                 LEFT JOIN
+             album_info ai ON s.album_id = ai.album_id AND ai.delete_flag = 0
+        WHERE s.delete_flag = 0
+          AND s.album_id = #{albumId}
+    </select>
+    <!--  获取新歌榜  -->
+    <select id="selectNewSongs" resultType="com.jlf.music.controller.vo.SongBasicInfoVo">
+        SELECT s.song_id           AS songId,
+               s.song_name         AS songName,
+               s.song_duration     AS songDuration,
+               s.song_cover        AS songCover,
+               s.song_release_date AS songReleaseDate,
+               si.singer_id        AS singerId,
+               si.singer_name      AS singerName,
+               a.album_id          AS albumId,
+               a.album_name        AS albumName,
+               sm.mv_id            AS mvId
+        FROM song_info s
+                 LEFT JOIN
+             singer_info si ON s.singer_id = si.singer_id AND si.delete_flag = 0
+                 LEFT JOIN
+             album_info a ON s.album_id = a.album_id AND a.delete_flag = 0
+                 left join
+             song_mv sm on s.song_id = sm.song_id and sm.delete_flag = 0
+        WHERE s.song_release_date >= #{startTime}
+          AND s.delete_flag = 0
+        ORDER BY s.song_release_date DESC
+            LIMIT #{limit}
     </select>
 </mapper>

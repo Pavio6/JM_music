@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jlf.music.mapper.SongMvMapper">
+    <select id="selectMvDetailById" resultType="com.jlf.music.controller.vo.SongMvDetailVo">
+        SELECT sm.mv_id              AS mvId,
+               sm.mv_bio             AS mvBio,
+               si.singer_id          AS singerId,
+               sin.singer_name       AS singerName,
+               si.song_name          AS songName,
+               sm.mv_release_date    AS mvReleaseDate,
+               sm.mv_file_path_480p  AS mvFilePath480p,
+               sm.mv_file_path_720p  AS mvFilePath720p,
+               sm.mv_file_path_1080p AS mvFilePath1080p
+        FROM song_mv sm
+                 INNER JOIN
+             song_info si ON sm.song_id = si.song_id AND si.delete_flag = 0
+                 INNER JOIN
+             singer_info sin ON si.singer_id = sin.singer_id AND sin.delete_flag = 0
+        WHERE sm.mv_id = #{mvId}
+          AND sm.delete_flag = 0
+
+    </select>
+</mapper>

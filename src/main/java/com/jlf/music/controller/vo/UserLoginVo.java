@@ -7,5 +7,5 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class UserLoginVo {
     private String token;
-    private User user;
+    private UserRegisterVo userRegisterVo;
 }

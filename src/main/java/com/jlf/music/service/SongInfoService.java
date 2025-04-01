@@ -2,12 +2,16 @@ package com.jlf.music.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.jlf.music.controller.dto.SongFormDTO;
 import com.jlf.music.controller.qry.SongQry;
+import com.jlf.music.controller.vo.SongDetailVo;
 import com.jlf.music.controller.vo.SongLyricsAndAudioVo;
 import com.jlf.music.controller.vo.SongBasicInfoVo;
 import com.jlf.music.entity.SongInfo;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -48,7 +52,7 @@ public interface SongInfoService extends IService<SongInfo> {
      *
      * @return 歌曲列表
      */
-    List<SongBasicInfoVo> getNewSongsWithCache();
+    List<SongBasicInfoVo> getNewSongs();
 
     /**
      * 获取热歌榜
@@ -68,5 +72,17 @@ public interface SongInfoService extends IService<SongInfo> {
      * @return 歌曲列表
      */
     List<SongBasicInfoVo> getRisingSongs();
-
+    /**
+     * 更新歌曲
+     */
+    Boolean updateSong(Long songId, MultipartFile songLyricsFile, MultipartFile songFile, MultipartFile songCoverFile, SongFormDTO songFormDTO);
+    /**
+     * 获取歌曲详情
+     * @param songId 歌曲id
+     */
+    SongDetailVo getSongDetail(Long songId);
+    /**
+     * 新增歌曲
+     */
+    Boolean addSong(SongFormDTO songFormDTO, MultipartFile songLyricsFile, MultipartFile songFile, MultipartFile songCoverFile);
 }

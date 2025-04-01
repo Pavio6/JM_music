@@ -1,11 +1,9 @@
 package com.jlf.music.service.impl;
 
-import com.jlf.music.controller.vo.StatisticsVO;
-import com.jlf.music.mapper.AlbumInfoMapper;
-import com.jlf.music.mapper.SingerInfoMapper;
-import com.jlf.music.mapper.SongInfoMapper;
-import com.jlf.music.mapper.SysUserMapper;
-import com.jlf.music.service.AdminOverviewService;
+import com.jlf.music.controller.vo.*;
+import com.jlf.music.exception.ServiceException;
+import com.jlf.music.mapper.*;
+import com.jlf.music.service.AdminDashboardService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.aop.framework.AopContext;
@@ -13,7 +11,9 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -21,7 +21,7 @@ import static com.jlf.music.common.constant.RedisConstant.*;
 
 @Slf4j
 @Service
-public class AdminOverviewServiceImpl implements AdminOverviewService {
+public class AdminDashboardServiceImpl implements AdminDashboardService {
     @Resource
     private StringRedisTemplate stringRedisTemplate;
     @Resource
@@ -32,37 +32,17 @@ public class AdminOverviewServiceImpl implements AdminOverviewService {
     private AlbumInfoMapper albumInfoMapper;
     @Resource
     private SysUserMapper sysUserMapper;
+    @Resource
+    private SongPlayDailyMapper songPlayDailyMapper;
+
     /**
-     * 获取统计数据
+     * 设置值到DashboardSummaryVo
      *
-     * @return StatisticsVO 歌曲 歌手 专辑 用户 的总数
-     */
-    @Override
-    public StatisticsVO getOverviewStatistics() {
-        // 当前类的代理对象
-        AdminOverviewService proxy = (AdminOverviewService) AopContext.currentProxy();
-        // 尝试从Redis获取数据
-        Map<Object, Object> statisticsMap = stringRedisTemplate.opsForHash().entries(STATISTICS_KEY);
-
-        StatisticsVO statistics;
-        if (!statisticsMap.isEmpty()) {
-            // Redis中有数据，直接返回
-            statistics = convertMapToStatistics(statisticsMap);
-        } else {
-            // Redis中没有数据，从数据库查询并缓存
-            statistics = proxy.queryAndCacheStatistics();
-        }
-
-        return statistics;
-    }
-
-    /**
-     * 设置值到StatisticsVo
      * @param map redis查询的结果
-     * @return StatisticsVO
+     * @return DashboardSummaryVo
      */
-    private StatisticsVO convertMapToStatistics(Map<Object, Object> map) {
-        StatisticsVO statistics = new StatisticsVO();
+    private DashboardSummaryVo convertMapToStatistics(Map<Object, Object> map) {
+        DashboardSummaryVo statistics = new DashboardSummaryVo();
         statistics.setTotalSongs(Long.parseLong(map.getOrDefault(SONG_COUNT_KEY, "0").toString()));
         statistics.setTotalSingers(Long.parseLong(map.getOrDefault(SINGER_COUNT_KEY, "0").toString()));
         statistics.setTotalAlbums(Long.parseLong(map.getOrDefault(ALBUM_COUNT_KEY, "0").toString()));
@@ -75,9 +55,8 @@ public class AdminOverviewServiceImpl implements AdminOverviewService {
      */
     @Override
     @Transactional
-    public StatisticsVO queryAndCacheStatistics() {
-        StatisticsVO statistics = new StatisticsVO();
-
+    public DashboardSummaryVo queryAndCacheStatistics() {
+        DashboardSummaryVo statistics = new DashboardSummaryVo();
         // 从数据库查询数据
         Long songCount = songInfoMapper.selectCount(null);
         Long singerCount = singerInfoMapper.selectCount(null);
@@ -96,13 +75,81 @@ public class AdminOverviewServiceImpl implements AdminOverviewService {
             cacheMap.put(ALBUM_COUNT_KEY, String.valueOf(albumCount));
             cacheMap.put(USER_COUNT_KEY, String.valueOf(userCount));
             stringRedisTemplate.opsForHash().putAll(STATISTICS_KEY, cacheMap);
-            // 设置过期时间
+            // 设置过期时间 - 180分钟
             stringRedisTemplate.expire(STATISTICS_KEY, CACHE_TIME, TimeUnit.MINUTES);
         } catch (Exception e) {
             log.error("Cache statistics failed", e);
         }
         return statistics;
     }
+
+    /**
+     * 获取统计数据
+     *
+     * @return StatisticsVO 歌曲 歌手 专辑 用户 的总数
+     */
+    @Override
+    public DashboardSummaryVo getDashboardSummary() {
+        // 当前类的代理对象
+        AdminDashboardService proxy = (AdminDashboardService) AopContext.currentProxy();
+        // 尝试从Redis获取数据
+        Map<Object, Object> statisticsMap = stringRedisTemplate.opsForHash().entries(STATISTICS_KEY);
+
+        DashboardSummaryVo statistics;
+        if (!statisticsMap.isEmpty()) {
+            // Redis中有数据，直接返回
+            statistics = convertMapToStatistics(statisticsMap);
+        } else {
+            // Redis中没有数据，从数据库查询并缓存
+            statistics = proxy.queryAndCacheStatistics();
+        }
+
+        return statistics;
+    }
+
+    /**
+     * 获取歌曲类型分布统计
+     */
+    @Override
+    public SongTypeDistributionVo getSongTypeDistribution() {
+        // 获取分组统计结果
+        List<SongTypeDistributionItem> items = albumInfoMapper.getSongTypeDistributionItems();
+        // 计算总歌曲数（各分类数量之和）
+        long total = items.stream().mapToLong(SongTypeDistributionItem::getCount).sum();
+        return new SongTypeDistributionVo()
+                .setData(items)
+                .setTotal(total);
+    }
+
+    /**
+     * 获取热门歌曲
+     */
+    @Override
+    public HotSongRankingVo getHotSongRanking(int days) {
+        // 参数校验
+        if (days <= 0) throw new ServiceException("统计天数必须大于0");
+
+        // 获取当前周期
+        LocalDate endDate = LocalDate.now(); // 2025-03-30
+        LocalDate startDate = endDate.minusDays(days - 1); // 2025-03-24
+        // 获取上一个周期
+        LocalDate previousEndDate = startDate.minusDays(1); // 2025-03-23
+        LocalDate previousStartDate = previousEndDate.minusDays(days - 1); // 2025-03-17
+
+        // 执行查询
+        List<HotSongRankingItem> rankingItems = songPlayDailyMapper.getHotSongRanking(
+                startDate, endDate,
+                previousStartDate, previousEndDate,
+                days
+        );
+
+        // 构建响应
+        return new HotSongRankingVo()
+                .setData(rankingItems)
+                .setStartDate(startDate.toString())
+                .setEndDate(endDate.toString());
+    }
+
     // 更新统计数据的方法（可以在添加/删除记录时调用）
     // TODO 在实体类增删改操作时更新缓存
     public void updateStatistics(String type, long count) {

@@ -27,7 +27,9 @@ public class FileServiceImpl implements FileService {
     // 定义允许的图片格式
     private static final List<String> ALLOWED_IMAGE_EXTENSIONS = Arrays.asList(".jpg", ".jpeg", ".png", ".gif");
     // 允许的音频文件格式列表
-    private static final List<String> ALLOWED_AUDIO_EXTENSIONS = Arrays.asList(".mp3", ".wav", ".ogg");
+    private static final List<String> ALLOWED_AUDIO_EXTENSIONS = Arrays.asList(".mp3", ".wav", ".ogg", ".mp4");
+    // 允许的视频文件格式列表
+    private static final List<String> ALLOWED_VIDEO_EXTENSIONS = List.of(".mp4");
     // 允许的歌词文件格式列表
     private static final List<String> ALLOWED_LYRICS_EXTENSIONS = List.of(".lrc");
     @Resource
@@ -91,7 +93,7 @@ public class FileServiceImpl implements FileService {
             throw new ServiceException("上传的文件为空");
         }
         // 获取文件名
-        String originalFilename = generateFileName(file.getOriginalFilename());
+        String originalFilename = file.getOriginalFilename();
         if (StrUtil.isEmpty(originalFilename)) {
             throw new ServiceException("无法获取文件名称");
         }
@@ -131,6 +133,7 @@ public class FileServiceImpl implements FileService {
      * 上传歌曲音频歌词资源
      * 音频：".mp3", ".wav", ".ogg"
      * 歌词：".lrc"
+     *
      * @param file           文件
      * @param uploadFileType 文件类型
      * @return 文件名
@@ -141,7 +144,7 @@ public class FileServiceImpl implements FileService {
             throw new ServiceException("上传的文件为空");
         }
         // 获取文件名
-        String originalFilename = generateFileName(file.getOriginalFilename());
+        String originalFilename = file.getOriginalFilename();
         if (StrUtil.isEmpty(originalFilename)) {
             throw new ServiceException("无法获取文件名称");
         }
@@ -155,6 +158,10 @@ public class FileServiceImpl implements FileService {
         } else if (uploadFileType == UploadFileType.SONG_LYRICS) {
             if (!ALLOWED_LYRICS_EXTENSIONS.contains(fileExtension.toLowerCase())) {
                 throw new IllegalArgumentException("不支持的歌词文件格式，仅支持：" + String.join(", ", ALLOWED_LYRICS_EXTENSIONS));
+            }
+        } else if (uploadFileType == UploadFileType.SONG_MV) {
+            if (!ALLOWED_VIDEO_EXTENSIONS.contains(fileExtension.toLowerCase())) {
+                throw new IllegalArgumentException("不支持的视频文件格式，仅支持：" + String.join(", ", ALLOWED_LYRICS_EXTENSIONS));
             }
         }
         try {
@@ -187,7 +194,7 @@ public class FileServiceImpl implements FileService {
      * 下载文件
      *
      * @param bucketName 存储桶
-     * @param fileName 文件名
+     * @param fileName   文件名
      * @return InputStream
      */
     @Override
@@ -209,7 +216,7 @@ public class FileServiceImpl implements FileService {
         // 使用时间戳和UUID生成唯一文件名
         String timestamp = String.valueOf(System.currentTimeMillis());
         String uuidStr = UUID.randomUUID().toString().replace("-", "").substring(0, 16);
-        return timestamp + "_" + uuidStr + "_" +    originalFileName;
+        return timestamp + "_" + uuidStr + "_" + originalFileName;
     }
 
     /**

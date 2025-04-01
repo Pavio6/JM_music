@@ -57,8 +57,8 @@ public class SecurityConfig {
         http
                 // 禁用CSRF保护
                 .csrf(AbstractHttpConfigurer::disable)
-                // 设置会话创建策略为无状态
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // 将AuthenticationTokenFilter过滤器添加到UsernamePasswordAuthenticationFilter之前
+                .addFilterBefore(authenticationTokenFilter, UsernamePasswordAuthenticationFilter.class)
                 // 配置授权规则
                 .authorizeHttpRequests(auth -> auth
                         // anonymous() 严格限制只有匿名用户可以访问指定路径，已认证用户无法访问
@@ -66,13 +66,15 @@ public class SecurityConfig {
                         .requestMatchers("/api/user/login", "/api/user/register").anonymous()
                         .requestMatchers("/common/captcha/get").permitAll()
                         // 管理员专属接口
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         // 用户和管理员共享接口
                         .requestMatchers("/api/user/**", "/common/**").hasAnyRole("ADMIN", "USER")
+                        // 允许WebSocket端点访问 
+                        .requestMatchers("/ws/**").permitAll()
                         // 其他所有请求都需要认证
                         .anyRequest().authenticated())
-                // 将AuthenticationTokenFilter过滤器添加到UsernamePasswordAuthenticationFilter之前
-                .addFilterBefore(authenticationTokenFilter, UsernamePasswordAuthenticationFilter.class)
+                // 设置会话创建策略为无状态
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // 配置异常处理
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(customAuthenticationEntryPoint) // 处理未认证

@@ -6,7 +6,7 @@ import lombok.experimental.Accessors;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
-import java.util.Date;
+
 @SuppressWarnings("all")
 /**
  * 用户注册DTO
@@ -40,10 +40,12 @@ public class UserRegisterDTO {
     @Size(max = 500, message = "简介最多500字")
     private String userBio;
     @Min(value = 0, message = "性别参数不合法")
-    @Max(value = 1, message = "性别参数不合法")
+    @Max(value = 2, message = "性别参数不合法")
     private Integer userSex;
     @Past(message = "生日必须为过去日期")
     private LocalDate userBirth;
-    // 用户头像
+    /**
+     * 用户头像
+     */
     private MultipartFile userAvatar;
 }

@@ -28,10 +28,10 @@ public class UserSongController {
      *
      * @return List<SongBasicInfoVo>
      */
-    @GetMapping("/latest")
+   /* @GetMapping("/latest")
     public Result<List<SongBasicInfoVo>> getLatestSongs() {
         return Result.success(songInfoService.getLatestSongs());
-    }
+    }*/
 
     /**
      * 根据歌曲ID查询歌曲音频歌词文件URL
@@ -64,7 +64,7 @@ public class UserSongController {
     @GetMapping("/new")
     public Result<List<SongBasicInfoVo>> getNewSongs() {
 
-        return Result.success(songInfoService.getNewSongsWithCache());
+        return Result.success(songInfoService.getNewSongs());
     }
 
     /**

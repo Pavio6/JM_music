@@ -42,10 +42,11 @@ public class UserPrivacy {
      */
     @TableField(value = "message_permission")
     private MessagePermissionType messagePermission;
-    @TableField(fill = FieldFill.INSERT)
+
+    @TableField(value = "create_time", fill = FieldFill.INSERT)
     private Date createTime;
-    @TableField(fill = FieldFill.INSERT_UPDATE)
+    @TableField(value = "update_time", fill = FieldFill.INSERT_UPDATE)
     private Date updateTime;
-    @TableField(fill = FieldFill.INSERT)
+    @TableField(value = "delete_flag", fill = FieldFill.INSERT)
     private Integer deleteFlag;
 }

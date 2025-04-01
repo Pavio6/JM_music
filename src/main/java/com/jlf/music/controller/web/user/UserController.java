@@ -3,7 +3,7 @@ package com.jlf.music.controller.web.user;
 import com.jlf.music.common.Result;
 import com.jlf.music.common.constant.RedisConstant;
 import com.jlf.music.controller.dto.*;
-import com.jlf.music.controller.vo.User;
+import com.jlf.music.controller.vo.UserRegisterVo;
 import com.jlf.music.controller.vo.UserDetailInfoVo;
 import com.jlf.music.controller.vo.UserPersonalInfoVo;
 import com.jlf.music.controller.vo.UserLoginVo;
@@ -12,7 +12,9 @@ import com.jlf.music.service.SysUserService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +27,7 @@ import static com.jlf.music.common.constant.Constant.SUCCESS_CODE;
 /**
  * 用户控制层
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/user")
 public class UserController {
@@ -37,8 +40,8 @@ public class UserController {
      * 用户注册
      */
     @PostMapping("/register")
-    public Result<User> register(@Valid UserRegisterDTO registerDTO,
-                                 BindingResult bindingResult) {
+    public Result<UserRegisterVo> register(@Valid UserRegisterDTO registerDTO,
+                                           BindingResult bindingResult) {
         return Result.success(sysUserService.register(registerDTO, bindingResult));
     }
 
@@ -57,6 +60,7 @@ public class UserController {
     public Result<Boolean> logout(HttpServletRequest request) {
         String token = request.getHeader("token");
         if (!Boolean.TRUE.equals(stringRedisTemplate.delete(RedisConstant.USER_LOGIN_KEY + token))) {
+            log.warn("退出登录失败!!!");
             throw new ServiceException("退出失败");
         }
         // 清除Security上下文中的认证信息
@@ -67,13 +71,14 @@ public class UserController {
     /**
      * 更新用户资料
      */
-    @PutMapping("/edit")
-    public Result<Boolean> updateUser(@RequestPart(value = "userName", required = false) String userName,
-                                      @RequestPart(value = "userEmail", required = false) String userEmail,
-                                      @RequestPart(value = "userBio", required = false) String userBio,
-                                      @RequestPart(value = "userBirth", required = false) LocalDate userBirth,
-                                      @RequestPart(value = "userSec", required = false) Integer userSex,
-                                      @RequestPart(value = "userAvatar", required = false) MultipartFile userAvatar) {
+    @PutMapping(value = "/edit", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Result<Boolean> updateUser(@RequestParam(value = "userName", required = false) String userName,
+                                      @RequestParam(value = "userEmail", required = false) String userEmail,
+                                      @RequestParam(value = "userBio", required = false) String userBio,
+                                      @RequestParam(value = "userBirth", required = false) LocalDate userBirth,
+                                      @RequestParam(value = "userSec", required = false) Integer userSex,
+                                      @RequestParam(value = "userAvatar", required = false) MultipartFile userAvatar) {
+
         return Result.success(sysUserService.updateUser(userName, userEmail, userBio, userBirth, userSex, userAvatar));
     }
 
@@ -87,6 +92,7 @@ public class UserController {
 
     /**
      * 获取用户个人信息
+     *
      * @return UserInfoVo
      */
     @GetMapping("/mine")

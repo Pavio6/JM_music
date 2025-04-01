@@ -3,7 +3,6 @@ package com.jlf.music.utils;
 import com.jlf.music.security.LoginUser;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
 
 /**
  * 安全上下文工具类，用于获取当前用户信息

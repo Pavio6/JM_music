@@ -18,7 +18,7 @@ public class RedisConstant {
     public static final String SINGER_COUNT_KEY = "singer_count";
     public static final String ALBUM_COUNT_KEY = "album_count";
     public static final String USER_COUNT_KEY = "user_count";
-    public static final Integer CACHE_TIME = 180; // 缓存180分钟
+    public static final Integer CACHE_TIME = 60; // 缓存60分钟
 
     // USER
     public static final String USER_LOGIN_KEY = "user:login:token:"; // 存储用户信息
@@ -32,6 +32,7 @@ public class RedisConstant {
     public static final String FAVORITE_SONG_KEY_PREFIX = "favorite:song:"; // 用户喜欢的歌曲
     public static final String FAVORITE_PLAYLIST_KEY_PREFIX = "favorite:singer:"; // 用户喜欢的歌单
     public static final String FAVORITE_ALBUM_KEY_PREFIX = "favorite:album:"; // 用户喜欢的专辑
+    public static final String FOLLOWERS_COUNT = "followers:count:"; // 歌手的粉丝数量
     /**
      * 用户每日听歌时长
      */

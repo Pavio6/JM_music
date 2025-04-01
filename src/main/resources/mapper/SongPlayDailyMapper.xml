@@ -10,6 +10,62 @@
             (#{item.songId}, #{item.date}, #{item.playCount})
         </foreach>
     </insert>
-
+    <!--
+    1. COALESCE函数：用于处理NULL值的函数，返回参数列表中第一个非NULL的值
+    2. CASE WHEN：可以实现按条件聚合数据
+    - CASE WHEN 条件1 THEN 值1
+    -      WHEN 条件2 THEN 值2
+    -      ELSE 值3
+    - END
+    -->
+    <select id="getHotSongRanking" resultType="com.jlf.music.controller.vo.HotSongRankingItem">
+        select s.song_id,
+               s.song_name,
+               si.singer_name,
+               ai.album_name,
+               coalesce(sum(
+                                case
+                                    when spd.date between #{startDate} and #{endDate}
+                                        then spd.play_count
+                                    else 0
+                                    end
+                        ), 0) as total_plays,
+               COALESCE(
+                       SUM(CASE
+                               WHEN spd.date BETWEEN #{startDate} AND #{endDate}
+                                   THEN spd.play_count
+                               ELSE 0 END) * 1.0 / #{days}, 0)
+                              AS average_plays,
+               CASE
+                   # 获取上一周期播放量
+                   WHEN COALESCE(SUM(CASE
+                                         WHEN spd.date BETWEEN #{previousStartDate} AND #{previousEndDate}
+                                             THEN spd.play_count
+                                         ELSE 0 END), 0) = 0
+                       THEN 0
+                   ELSE (
+                       # 当前周期播放量 - 上一周期播放量
+                       (
+                           COALESCE(SUM(CASE
+                                            WHEN spd.date BETWEEN #{startDate} AND #{endDate} THEN spd.play_count
+                                            ELSE 0 END), 0) -
+                           COALESCE(SUM(CASE
+                                            WHEN spd.date BETWEEN #{previousStartDate} AND #{previousEndDate}
+                                                THEN spd.play_count
+                                            ELSE 0 END), 0))
+                           * 100.0 / COALESCE(SUM(CASE
+                                                      WHEN spd.date BETWEEN #{previousStartDate} AND #{previousEndDate}
+                                                          THEN spd.play_count
+                                                      ELSE 0 END), 0)
+                       )
+                   END        AS growth_rate
+        from song_info s
+                 left join song_play_daily spd on s.song_id = spd.song_id
+                 left join album_info ai on s.album_id = ai.album_id
+                 left join singer_info si on si.singer_id = s.singer_id
+        group by s.song_id
+        order by total_plays desc
+        limit 5;
+    </select>
 
 </mapper>

@@ -42,5 +42,8 @@ public class UserFavoriteController {
                                                                PageRequest pageRequest) {
         return Result.success(userFavoriteService.getFavoriteSongsList(userId, pageRequest));
     }
-
+    @GetMapping("/mine")
+    public Result<IPage<SongBasicInfoVo>> getMineFavoriteSongsList(PageRequest pageRequest) {
+        return Result.success(userFavoriteService.getMineFavoriteSongsList(pageRequest));
+    }
 }

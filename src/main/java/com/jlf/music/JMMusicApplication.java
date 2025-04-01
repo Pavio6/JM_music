@@ -5,10 +5,16 @@ import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
+/**
+ * 启动类
+ *
+ * @Author JLF
+ * @Description 项目启动类
+ * @Date 2025/03/16 21:49
+ */
 @Slf4j
 @MapperScan("com.jlf.music.mapper")
 @SpringBootApplication

@@ -39,6 +39,18 @@ spring:
           max-idle: 10 # 最大空闲连接数
           min-idle: 5 # 最小空闲连接数
           max-active: 50 # 最大活动连接数
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: / # 虚拟主机
+    listener:
+      simple:
+        concurrency: 5 # 消费者并发线程数(同时处理消息的线程数)
+        max-concurrency: 10 # 消费者最大并发线程数(动态调整并发数)
+        prefetch: 1 # 消费者每次只能处理 1 条消息
+        default-requeue-rejected: true # 消息处理失败后 默认将消息再放回队列
 
 # mybatis-plus配置
 mybatis-plus:
@@ -53,7 +65,17 @@ mybatis-plus:
       logic-delete-field: deleteFlag # 全局逻辑删除字段名
       logic-delete-value: 1 # 逻辑已删除值
       logic-not-delete-value: 0 # 逻辑未删除值
+
 minio:
   endpoint: http://192.168.236.101:9000 # MinIO服务器地址
   accessKey: minioadmin # MinIO 访问密钥(用户名)
   secretKey: minioadmin # MinIO 密钥(密码)
+
+app:
+  # WebSocket 配置
+  websocket:
+    endpoint: /ws
+    allowed-origins: "*"
+  # 私信功能配置
+  message:
+    recall-time-limit: 120 # 撤回消息时间限制(秒)

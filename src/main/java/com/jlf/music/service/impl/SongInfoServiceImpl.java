@@ -6,11 +6,16 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jlf.music.common.enumerate.UploadFileType;
+import com.jlf.music.controller.dto.SongFormDTO;
 import com.jlf.music.controller.qry.SongQry;
+import com.jlf.music.controller.vo.SongDetailVo;
 import com.jlf.music.controller.vo.SongLyricsAndAudioVo;
 import com.jlf.music.controller.vo.SongBasicInfoVo;
 import com.jlf.music.entity.SongInfo;
 import com.jlf.music.exception.ServiceException;
+import com.jlf.music.mapper.AlbumInfoMapper;
+import com.jlf.music.mapper.SingerInfoMapper;
 import com.jlf.music.mapper.SongInfoMapper;
 import com.jlf.music.service.FileService;
 import com.jlf.music.service.SongInfoService;
@@ -18,14 +23,16 @@ import com.jlf.music.utils.CopyUtils;
 import com.jlf.music.utils.MinIOPathParser;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
 import java.net.URLEncoder;
@@ -55,6 +62,10 @@ public class SongInfoServiceImpl extends ServiceImpl<SongInfoMapper, SongInfo>
     private StringRedisTemplate stringRedisTemplate;
     @Resource
     private FileService fileService;
+    @Resource
+    private SingerInfoMapper singerInfoMapper;
+    @Resource
+    private AlbumInfoMapper albumInfoMapper;
 
     /**
      * 分页或通过名称模糊查询歌曲信息
@@ -135,7 +146,7 @@ public class SongInfoServiceImpl extends ServiceImpl<SongInfoMapper, SongInfo>
      * @return 歌曲列表
      */
     @Override
-    public List<SongBasicInfoVo> getNewSongsWithCache() {
+    public List<SongBasicInfoVo> getNewSongs() {
         // 尝试从缓存中获取
         String cacheData = stringRedisTemplate.opsForValue().get(NEW_SONGS_CACHE_KEY);
         if (StringUtils.hasText(cacheData)) {
@@ -144,6 +155,10 @@ public class SongInfoServiceImpl extends ServiceImpl<SongInfoMapper, SongInfo>
         }
         // 缓存未命中 查询数据库
         List<SongBasicInfoVo> newSongs = queryNewSongsFromDB();
+        // 如果新歌榜为空 不需要向数据库中存
+        if (newSongs.isEmpty()) {
+            return newSongs;
+        }
         // 异步更新缓存（不阻塞当前请求）
         CompletableFuture.runAsync(() -> updateCache(newSongs, NEW_SONGS_CACHE_KEY));
         return newSongs;
@@ -166,16 +181,6 @@ public class SongInfoServiceImpl extends ServiceImpl<SongInfoMapper, SongInfo>
     }
 
     /**
-     * 记录歌曲播放量
-     */
-    @Override
-    public void recordSongPlayCount(Long songId) {
-        String dateKey = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
-        String hashKey = SONG_DAILY_KEY_PREFIX + dateKey;
-        stringRedisTemplate.opsForHash().increment(hashKey, songId.toString(), 1);
-    }
-
-    /**
      * 获取飙升榜
      *
      * @return 歌曲列表
@@ -190,6 +195,109 @@ public class SongInfoServiceImpl extends ServiceImpl<SongInfoMapper, SongInfo>
         CompletableFuture.runAsync(() -> updateCache(risingSongs, RISING_SONGS_CACHE_KEY));
         return risingSongs;
     }
+
+    /**
+     * 更新歌曲
+     */
+
+    @Override
+    @Transactional
+    public Boolean updateSong(Long songId, MultipartFile songLyricsFile, MultipartFile songFile, MultipartFile songCoverFile, SongFormDTO songFormDTO) {
+        String songLyrics = songLyricsFile != null ? fileService.uploadSongFile(songLyricsFile, UploadFileType.SONG_LYRICS) : null;
+        String songFilePath = songFile != null ? fileService.uploadSongFile(songFile, UploadFileType.SONG_AUDIO) : null;
+        String songCover = songCoverFile != null ? fileService.uploadImageFile(songCoverFile, UploadFileType.SONG_COVER) : null;
+        // 查询当前歌曲信息
+        SongInfo songInfo = songInfoMapper.selectById(songId);
+        if (songInfo == null) {
+            throw new ServiceException("歌曲不存在");
+        }
+        // 更新非空字段
+        if (songFormDTO.getSongName() != null && !songFormDTO.getSongName().isBlank()) {
+            songInfo.setSongName(songFormDTO.getSongName());
+        }
+        if (songFormDTO.getSongDuration() != null) {
+            songInfo.setSongDuration(songFormDTO.getSongDuration());
+        }
+        if (songFormDTO.getSongReleaseDate() != null) {
+            songInfo.setSongReleaseDate(songFormDTO.getSongReleaseDate());
+        }
+        if (songFormDTO.getSingerId() != null) {
+            songInfo.setSingerId(songFormDTO.getSingerId());
+        }
+        if (songFormDTO.getAlbumId() != null) {
+            songInfo.setAlbumId(songFormDTO.getAlbumId());
+        }
+
+        // 更新文件路径
+        if (songLyrics != null) {
+            // 删除之前存放在minio中的文件
+            fileService.deleteFile(songInfo.getSongLyrics());
+            songInfo.setSongLyrics(songLyrics);
+        }
+        if (songFilePath != null) {
+            fileService.deleteFile(songInfo.getSongFilePath());
+            songInfo.setSongFilePath(songFilePath);
+        }
+        if (songCover != null) {
+            fileService.deleteFile(songInfo.getSongCover());
+            songInfo.setSongCover(songCover);
+        }
+
+        return songInfoMapper.updateById(songInfo) > 0;
+    }
+
+    /**
+     * 获取歌曲详情
+     *
+     * @param songId 歌曲id
+     */
+    @Override
+    public SongDetailVo getSongDetail(Long songId) {
+        SongDetailVo songDetailVo = new SongDetailVo();
+        SongInfo songInfo = this.getById(songId);
+        CopyUtils.classCopy(songInfo, songDetailVo);
+        String albumName = albumInfoMapper.selectById(songInfo.getAlbumId()).getAlbumName();
+        String singerName = singerInfoMapper.selectById(songInfo.getSingerId()).getSingerName();
+        return songDetailVo.setAlbumName(albumName)
+                .setSingerName(singerName);
+
+    }
+
+    /**
+     * 新增歌曲
+     */
+    @Override
+    @Transactional
+    public Boolean addSong(SongFormDTO songFormDTO, MultipartFile songLyricsFile, MultipartFile songFile, MultipartFile songCoverFile) {
+        String songLyrics = songLyricsFile != null ? fileService.uploadSongFile(songLyricsFile, UploadFileType.SONG_LYRICS) : null;
+        String songFilePath = songFile != null ? fileService.uploadSongFile(songFile, UploadFileType.SONG_AUDIO) : null;
+        String songCover = songCoverFile != null ? fileService.uploadSongFile(songCoverFile, UploadFileType.SONG_COVER) : null;
+        SongInfo songInfo = new SongInfo();
+        CopyUtils.classCopy(songFormDTO, songInfo);
+        // 更新文件路径
+        if (songLyrics != null) {
+            songInfo.setSongLyrics(songLyrics);
+        }
+        if (songFilePath != null) {
+            songInfo.setSongFilePath(songFilePath);
+        }
+        if (songCover != null) {
+            songInfo.setSongCover(songCover);
+        }
+        // songInfo.setPlayCount(0.0);
+        return songInfoMapper.insert(songInfo) > 0;
+    }
+
+    /**
+     * 记录歌曲播放量
+     */
+    @Override
+    public void recordSongPlayCount(Long songId) {
+        String dateKey = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
+        String hashKey = SONG_DAILY_KEY_PREFIX + dateKey;
+        stringRedisTemplate.opsForHash().increment(hashKey, songId.toString(), 1);
+    }
+
 
     /**
      * 查询数据库获取新歌 (最近7天, 默认100条)
@@ -287,7 +395,6 @@ public class SongInfoServiceImpl extends ServiceImpl<SongInfoMapper, SongInfo>
             return objectMapper.readValue(json,
                     new TypeReference<>() {
                     });
-
         } catch (Exception e) {
             log.warn("缓存反序列化失败", e);
             return Collections.emptyList();

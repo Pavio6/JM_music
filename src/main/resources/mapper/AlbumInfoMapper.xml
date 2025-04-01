@@ -11,8 +11,12 @@
         a.album_release_date AS albumReleaseDate,
         a.album_bio AS albumBio,
         a.album_cover AS albumCover,
+        a.type_id AS typeId,
         t.type_name AS typeName,
-        s.singer_name AS singerName
+        a.singer_id AS singerId,
+        s.singer_name AS singerName,
+        a.create_time AS createTime,
+        a.update_time AS updateTime
         FROM
         album_info a
         LEFT JOIN
@@ -24,7 +28,22 @@
         <if test="albumQry.albumName != null and albumQry.albumName != ''">
             AND a.album_name LIKE CONCAT('%', #{albumQry.albumName}, '%')
         </if>
+        <if test="albumQry.singerId != null">
+            AND a.singer_id = #{albumQry.singerId}
+        </if>
+        <if test="albumQry.typeId != null">
+            AND a.type_id = #{albumQry.typeId}
+        </if>
+        <if test="albumQry.beginDate != null">
+            AND a.album_release_date >= #{albumQry.beginDate}
+        </if>
+        <if test="albumQry.endDate != null">
+            <![CDATA[
+        AND a.album_release_date <= #{albumQry.endDate}
+            ]]>
+        </if>
     </select>
+
     <select id="searchAlbums" resultType="com.jlf.music.controller.vo.AlbumSearchVo">
         SELECT ai.album_id    AS albumId,
                ai.album_name  AS albumName,
@@ -36,5 +55,16 @@
           AND ai.delete_flag = 0
           AND si.delete_flag = 0
             LIMIT #{limit}
+    </select>
+    <select id="getSongTypeDistributionItems" resultType="com.jlf.music.controller.vo.SongTypeDistributionItem">
+        SELECT a.type_id   AS typeId,
+               t.type_name AS typeName,
+               COUNT(s.song_id) AS count
+        FROM album_info a
+            LEFT JOIN song_info s
+        ON a.album_id = s.album_id
+            LEFT JOIN type_info t
+            ON a.type_id = t.type_id
+        GROUP BY a.type_id, t.type_name
     </select>
 </mapper>

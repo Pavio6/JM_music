@@ -1,7 +1,9 @@
 package com.jlf.music.controller.dto;
 
 import com.jlf.music.controller.vo.SongBasicInfoVo;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 
 import java.util.List;
@@ -11,6 +13,8 @@ import java.util.List;
  */
 @Data
 @Accessors(chain = true)
+@AllArgsConstructor
+@NoArgsConstructor
 public class PlaylistDetailDTO {
     private Long playlistId;
     private String playlistName;

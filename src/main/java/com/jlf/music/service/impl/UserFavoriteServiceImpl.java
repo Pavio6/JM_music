@@ -90,6 +90,23 @@ public class UserFavoriteServiceImpl extends ServiceImpl<UserFavoriteMapper, Use
                 .toList();
         return songInfoMapper.getFavoriteSongs(page, songIds);
     }
+
+    /**
+     * 获取用户个人收藏歌曲列表
+     */
+    @Override
+    public IPage<SongBasicInfoVo> getMineFavoriteSongsList(PageRequest pageRequest) {
+        Long userId = SecurityUtils.getUserId();
+        Page<SongBasicInfoVo> page = new Page<>(pageRequest.getPageNum(), pageRequest.getPageSize());
+        List<Long> songIds = this.list(new LambdaQueryWrapper<UserFavorite>()
+                        .eq(UserFavorite::getUserId, userId)
+                        .eq(UserFavorite::getTargetType, TargetType.SONG))
+                .stream()
+                .map(UserFavorite::getTargetId)
+                .filter(Objects::nonNull)
+                .toList();
+        return songInfoMapper.getFavoriteSongs(page, songIds);
+    }
 //    // 获取登录用户
 //    Long userId = UserHolder.getUser().getUserId();
 //    // 防止用户对自己进行关注

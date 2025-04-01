@@ -20,5 +20,8 @@ public class UserDetailInfoVo {
      * 用户喜欢的歌曲列表
      */
     private IPage<SongBasicInfoVo> favoriteSongsList;
+    /**
+     *
+     */
 
 }

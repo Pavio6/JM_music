@@ -29,6 +29,13 @@ public class UserSearchController {
     @Resource
     private AlbumInfoMapper albumInfoMapper;
 
+    /**
+     * 搜索
+     *
+     * @param keyword 关键词
+     * @param limit 条数
+     * @return SearchResultVo
+     */
     @GetMapping
     public Result<SearchResultVo> search(@RequestParam String keyword,
                                          @RequestParam(defaultValue = "5") Integer limit) {

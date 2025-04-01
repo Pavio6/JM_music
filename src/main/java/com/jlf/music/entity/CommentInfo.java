@@ -3,6 +3,7 @@ package com.jlf.music.entity;
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.checkerframework.checker.units.qual.Temperature;
 
 import java.io.Serial;
 import java.io.Serializable;
@@ -20,33 +21,40 @@ public class CommentInfo implements Serializable {
     @TableId(value = "comment_id", type = IdType.AUTO)
     private Long commentId;
     /**
-     * 目标类型 歌曲/歌单/专辑   0-歌曲 1-歌单 2-专辑
+     * 目标类型
      */
+    @TableField("target_type")
     private Integer targetType;
     /**
-     * 目标ID 歌曲/歌单ID
+     * 目标ID
      */
+    @TableField("target_id")
     private Long targetId;
+    @TableField("user_id")
     private Long userId;
     /**
      * 评论内容
      */
+    @TableField("content")
     private String content;
     /**
      * 父评论ID
      */
+    @TableField("parent_comment_id")
     private Long parentCommentId;
     /**
      * 评论层级 最多三层
      */
+    @TableField("level")
     private Integer level;
     /**
      * 评论点赞数量
      */
+    @TableField("like_count")
     private Integer likeCount;
-    @TableField(fill = FieldFill.INSERT)
+    @TableField(value = "create_time", fill = FieldFill.INSERT)
     private Date createTime;
-    @TableField(fill = FieldFill.INSERT)
+    @TableField(value = "delete_flag", fill = FieldFill.INSERT)
     private Integer deleteFlag;
 
 }

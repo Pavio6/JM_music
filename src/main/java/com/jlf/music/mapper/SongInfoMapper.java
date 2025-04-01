@@ -25,23 +25,12 @@ public interface SongInfoMapper extends BaseMapper<SongInfo> {
      */
     IPage<SongBasicInfoVo> getSongsByPage(IPage<SongInfo> page, @Param("songQry") SongQry songQry);
 
-    @Select({
-            "SELECT " +
-                    "   s.song_id AS songId, " +
-                    "   s.song_name AS songName, " +
-                    "   s.song_duration AS songDuration, " +
-                    "   s.song_cover AS songCover, " +
-                    "   si.singer_name AS singerName, " +
-                    "   ai.album_name AS albumName " +
-                    "FROM " +
-                    "   song_info s " +
-                    "LEFT JOIN " +
-                    "   singer_info si ON s.singer_id = si.singer_id " +
-                    "LEFT JOIN " +
-                    "   album_info ai ON s.album_id = ai.album_id " +
-                    "WHERE " +
-                    "   s.delete_flag = 0 and s.album_id = #{albumId}"
-    })
+    /**
+     * 根据专辑id获取所有歌曲
+     *
+     * @param albumId 专辑id
+     * @return 歌曲列表
+     */
     List<SongBasicInfoVo> getSongsByAlbumId(@Param("albumId") Long albumId);
 
     /**
@@ -54,8 +43,10 @@ public interface SongInfoMapper extends BaseMapper<SongInfo> {
             "s.song_duration AS songDuration, " +
             "s.song_cover AS songCover, " +
             "si.singer_name AS singerName " +
+            "sm.mv_id AS mvId" +
             "FROM song_info s " +
             "LEFT JOIN singer_info si ON s.singer_id = si.singer_id " +
+            "LEFT JOIN song_mv sm on s.sing_id = sm.sing_id" +
             "WHERE s.delete_flag = 0 " +
             "ORDER BY s.create_time DESC " +
             "LIMIT 2")
@@ -74,6 +65,7 @@ public interface SongInfoMapper extends BaseMapper<SongInfo> {
 
     /**
      * 获取播放列表歌曲信息
+     *
      * @param songIds 歌曲ids
      * @return SongSimpleInfoVo
      */
@@ -98,15 +90,6 @@ public interface SongInfoMapper extends BaseMapper<SongInfo> {
     /**
      * 获取新歌榜
      */
-    @Select("SELECT s.song_id AS songId, s.song_name AS songName, s.song_duration AS songDuration, " +
-            "s.song_cover AS songCover, s.song_release_date AS songReleaseDate, " +
-            "si.singer_id as singerId, si.singer_name AS singerName,a.album_id as albumId, a.album_name AS albumName " +
-            "FROM song_info s " +
-            "LEFT JOIN singer_info si ON s.singer_id = si.singer_id AND si.delete_flag = 0 " +
-            "LEFT JOIN album_info a ON s.album_id = a.album_id AND a.delete_flag = 0 " +
-            "WHERE s.song_release_date >= #{startTime} AND s.delete_flag = 0 " +
-            "ORDER BY s.song_release_date DESC " +
-            "LIMIT #{limit}")
     List<SongBasicInfoVo> selectNewSongs(@Param("startTime") LocalDateTime startTime, @Param("limit") int limit);
 
     /**
@@ -115,4 +98,9 @@ public interface SongInfoMapper extends BaseMapper<SongInfo> {
      * @return 歌曲列表
      */
     List<SongBasicInfoVo> selectRisingSongs();
+
+    /**
+     * 根据歌手id获取歌曲列表
+     */
+    List<SongBasicInfoVo> selectTopSongsBySingerId(@Param("singerId") Long singerId);
 }

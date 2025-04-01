@@ -2,7 +2,7 @@ package com.jlf.music.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.jlf.music.controller.dto.*;
-import com.jlf.music.controller.vo.User;
+import com.jlf.music.controller.vo.UserRegisterVo;
 import com.jlf.music.controller.vo.UserDetailInfoVo;
 import com.jlf.music.controller.vo.UserPersonalInfoVo;
 import com.jlf.music.controller.vo.UserLoginVo;
@@ -20,7 +20,7 @@ public interface SysUserService extends IService<SysUser> {
      * @param bindingResult 错误信息
      * @return Boolean
      */
-    User register(@Valid UserRegisterDTO registerDTO, BindingResult bindingResult);
+    UserRegisterVo register(@Valid UserRegisterDTO registerDTO, BindingResult bindingResult);
 
     /**
      * 用户登录

@@ -19,15 +19,43 @@ import java.util.Date;
 public class PlaylistSong implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
+
+    /**
+     * 歌单ID
+     */
+    @TableField("playlist_id")
     private Long playlistId;
+
+    /**
+     * 歌曲ID
+     */
+    @TableField("song_id")
     private Long songId;
-    @TableField(fill = FieldFill.INSERT)
+
+    /**
+     * 创建时间
+     */
+    @TableField(value = "create_time", fill = FieldFill.INSERT)
     private Date createTime;
-    @TableField(fill = FieldFill.INSERT_UPDATE)
+
+    /**
+     * 更新时间
+     */
+    @TableField(value = "update_time", fill = FieldFill.INSERT_UPDATE)
     private Date updateTime;
-    @TableField(fill = FieldFill.INSERT)
+
+    /**
+     * 删除标志（0-未删除，1-已删除）
+     */
+    @TableField(value = "delete_flag", fill = FieldFill.INSERT)
     private Integer deleteFlag;
 
+    /**
+     * 构造函数
+     *
+     * @param playlistId 歌单ID
+     * @param songId     歌曲ID
+     */
     public PlaylistSong(Long playlistId, Long songId) {
         this.playlistId = playlistId;
         this.songId = songId;

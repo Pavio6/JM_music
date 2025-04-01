@@ -12,10 +12,7 @@ import com.jlf.music.controller.qry.CommentQry;
 import com.jlf.music.controller.vo.CommentTreeVo;
 import com.jlf.music.entity.CommentInfo;
 import com.jlf.music.exception.ServiceException;
-import com.jlf.music.mapper.AlbumInfoMapper;
-import com.jlf.music.mapper.CommentInfoMapper;
-import com.jlf.music.mapper.PlaylistInfoMapper;
-import com.jlf.music.mapper.SongInfoMapper;
+import com.jlf.music.mapper.*;
 import com.jlf.music.service.CommentInfoService;
 import com.jlf.music.utils.SecurityUtils;
 import jakarta.annotation.Resource;
@@ -39,6 +36,8 @@ public class CommentInfoServiceImpl extends ServiceImpl<CommentInfoMapper, Comme
     @Resource
     private PlaylistInfoMapper playlistInfoMapper;
     @Resource
+    private SongMvMapper songMvMapper;
+    @Resource
     private StringRedisTemplate stringRedisTemplate;
 
     /**
@@ -59,16 +58,20 @@ public class CommentInfoServiceImpl extends ServiceImpl<CommentInfoMapper, Comme
         if (ObjectUtil.equals(commentDTO.getTargetType(), TargetType.SONG)) {
             // 判断歌曲是否存在
             if (songInfoMapper.selectById(commentDTO.getTargetId()) == null) {
-                throw new ServiceException("歌曲不存在，参数值错误");
+                throw new ServiceException("歌曲不存在");
             }
         } else if (ObjectUtil.equals(commentDTO.getTargetType(), TargetType.PLAYLIST)) {
             if (playlistInfoMapper.selectById(commentDTO.getTargetId()) == null) {
-                throw new ServiceException("歌单不存在，参数值错误");
+                throw new ServiceException("歌单不存在");
             }
             commentInfo.setTargetType(commentDTO.getTargetType().getValue());
         } else if (ObjectUtil.equals(commentDTO.getTargetType(), TargetType.ALBUM)) {
             if (albumInfoMapper.selectById(commentDTO.getTargetId()) == null) {
-                throw new ServiceException("专辑不存在，参数值错误");
+                throw new ServiceException("专辑不存在");
+            }
+        } else if (ObjectUtil.equals(commentDTO.getTargetType(), TargetType.SONG_MV)) {
+            if (songMvMapper.selectById(commentDTO.getTargetId()) == null) {
+                throw new ServiceException("歌曲视频不存在");
             }
         } else {
             throw new ServiceException("不存在该类型");

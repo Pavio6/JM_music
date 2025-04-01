@@ -9,7 +9,8 @@ import lombok.Getter;
 public enum TargetType {
     SONG(0),
     PLAYLIST(1),
-    ALBUM(2);
+    ALBUM(2),
+    SONG_MV(3);
 
     private final Integer value;
 

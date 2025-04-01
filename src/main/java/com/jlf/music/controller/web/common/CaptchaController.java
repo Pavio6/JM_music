@@ -5,6 +5,7 @@ import com.jlf.music.common.constant.RedisConstant;
 import com.jlf.music.controller.vo.CaptchaVo;
 import com.wf.captcha.SpecCaptcha;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/common/captcha")
+@Slf4j
 public class CaptchaController {
     @Resource
     private StringRedisTemplate stringRedisTemplate;
@@ -30,6 +32,7 @@ public class CaptchaController {
         String code = specCaptcha.text().toLowerCase();
         // 为验证码生成一个key值  用来唯一标识
         String key = RedisConstant.ADMIN_LOGIN_PREFIX + UUID.randomUUID();
+        log.info("正在获取验证码...");
         // 将 key code值 存放到redis中
         stringRedisTemplate
                 .opsForValue()

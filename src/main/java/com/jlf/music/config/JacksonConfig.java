@@ -41,6 +41,7 @@ public class JacksonConfig {
         javaTimeModule.addSerializer(LocalDateTime.class, new LocalDateTimeSerializer(localDateTimeFormatter));
         javaTimeModule.addDeserializer(LocalDateTime.class, new LocalDateTimeDeserializer(localDateTimeFormatter));
 
+
         // 注册模块
         objectMapper.registerModule(javaTimeModule);
         return objectMapper;

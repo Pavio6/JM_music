@@ -70,7 +70,7 @@ public class FileUploadTest {
      */
     @Test
     public void uploadSongAudio() throws IOException {
-        File file = new File("C:\\Users\\93198\\Desktop\\song-resource\\林俊杰\\林俊杰 - 光阴副本.mp3");
+        File file = new File("C:\\Users\\93198\\Desktop\\song-resource\\林俊杰\\林俊杰 - 愿与愁.mp3");
         FileInputStream fileInputStream = new FileInputStream(file);
         MultipartFile mockMultipartFile = new MockMultipartFile(
                 file.getName(),
@@ -78,9 +78,46 @@ public class FileUploadTest {
                 "audio/mpeg",
                 fileInputStream
         );
-        String s = fileService.uploadImageFile(mockMultipartFile, UploadFileType.SONG_AUDIO);
+        String s = fileService.uploadSongFile(mockMultipartFile, UploadFileType.SONG_AUDIO);
         System.out.println("s = " + s);
         System.out.println("s = " + s);
+    }
+
+    @Test
+    public void uploadSongMV() throws Exception {
+        // 1. 读取本地的 MP4 文件
+        File sdFile = new File("C:\\Users\\93198\\Desktop\\song-resource\\MV\\林俊杰-愿与愁(标清).mp4");
+        File hdFile = new File("C:\\Users\\93198\\Desktop\\song-resource\\MV\\林俊杰-愿与愁(高清).mp4");
+        File fullHdFile = new File("C:\\Users\\93198\\Desktop\\song-resource\\MV\\林俊杰-愿与愁(超清).mp4");
+
+        // 2. 将文件转换为 MultipartFile 对象
+        MultipartFile sdMultipartFile = new MockMultipartFile(
+                sdFile.getName(),
+                sdFile.getName(),
+                "video/mp4",
+                new FileInputStream(sdFile)
+        );
+
+        MultipartFile hdMultipartFile = new MockMultipartFile(
+                hdFile.getName(),
+                hdFile.getName(),
+                "video/mp4",
+                new FileInputStream(hdFile)
+        );
+
+        MultipartFile fullHdMultipartFile = new MockMultipartFile(
+                fullHdFile.getName(),
+                fullHdFile.getName(),
+                "video/mp4",
+                new FileInputStream(fullHdFile)
+        );
+
+        String sd = fileService.uploadSongFile(sdMultipartFile, UploadFileType.SONG_MV);
+        System.out.println("标清文件路径: " + sd);
+        String hd = fileService.uploadSongFile(hdMultipartFile, UploadFileType.SONG_MV);
+        System.out.println("高清文件路径: " + hd);
+        String full = fileService.uploadSongFile(fullHdMultipartFile, UploadFileType.SONG_MV);
+        System.out.println("超清文件路径: " + full);
     }
 
     /**
@@ -127,6 +164,7 @@ public class FileUploadTest {
         System.out.println("s = " + s);
         System.out.println("s = " + s);
     }
+
     /**
      * 上传用户头像到minio
      */

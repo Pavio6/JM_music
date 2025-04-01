@@ -7,7 +7,7 @@ import lombok.experimental.Accessors;
 @Data
 @Accessors(chain = true)
 @AllArgsConstructor
-public class User {
+public class UserRegisterVo {
     private Long userId;
     private String userName;
     private String userAvatar;

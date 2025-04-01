@@ -17,10 +17,7 @@ import com.jlf.music.exception.ServiceException;
 import com.jlf.music.mapper.SysUserMapper;
 import com.jlf.music.mapper.UserPrivacyMapper;
 import com.jlf.music.security.LoginUser;
-import com.jlf.music.service.FileService;
-import com.jlf.music.service.SysUserService;
-import com.jlf.music.service.UserFavoriteService;
-import com.jlf.music.service.UserFollowService;
+import com.jlf.music.service.*;
 import com.jlf.music.utils.CopyUtils;
 import com.jlf.music.utils.SecurityUtils;
 import jakarta.annotation.Resource;
@@ -37,11 +34,13 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.jlf.music.common.constant.RedisConstant.USER_LOGIN_KEY;
@@ -66,6 +65,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     // 注入 Spring Security 的密码编码器
     @Resource
     private PasswordEncoder passwordEncoder;
+    @Resource
+    private PlayQueueService playQueueService;
 
     /**
      * 用户注册
@@ -76,7 +77,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public User register(UserRegisterDTO registerDTO, BindingResult bindingResult) {
+    public UserRegisterVo register(UserRegisterDTO registerDTO, BindingResult bindingResult) {
         // 验证存在错误
         if (bindingResult.hasErrors()) {
             // 获取绑定错误中的第一个字段错误
@@ -89,7 +90,6 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new ServiceException("用户名已存在");
         }
         // 判断邮箱是否已存在
-
         if (sysUserMapper.selectCount(new LambdaQueryWrapper<SysUser>()
                 .eq(SysUser::getUserEmail, registerDTO.getUserEmail())) > 0) {
             throw new ServiceException("邮箱已被注册");
@@ -107,7 +107,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (sysUserMapper.insert(sysUser) <= 0) {
             throw new ServiceException("注册失败");
         }
-
+        // 创建空的播放队列
+        Boolean success = playQueueService.createEmptyQueue(sysUser.getUserId());
+        if (success) {
+            log.info("用户{}创建了空的播放队列, 时间为:{}", sysUser.getUserId(), System.currentTimeMillis());
+        }
         // 注册成功后 插入默认隐私设置
         UserPrivacy userPrivacy = new UserPrivacy();
         userPrivacy.setUserId(sysUser.getUserId())
@@ -120,7 +124,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (userPrivacyMapper.insert(userPrivacy) <= 0) {
             throw new ServiceException("插入隐私设置失败");
         }
-        return new User(sysUser.getUserId(), sysUser.getUserName(), sysUser.getUserAvatar());
+
+        return new UserRegisterVo(sysUser.getUserId(), sysUser.getUserName(), sysUser.getUserAvatar());
     }
 
     /**
@@ -159,11 +164,14 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         stringRedisTemplate.expire(USER_LOGIN_KEY + token, 300000L, TimeUnit.MINUTES);
         // 清理验证码
         stringRedisTemplate.delete(userLoginDTO.getCaptchaKey());
+        // 更新用户最后登录时间
+        this.update(new LambdaUpdateWrapper<SysUser>()
+                .set(SysUser::getLastLoginTime, LocalDateTime.now())
+                .eq(SysUser::getUserId, user.getUserId()));
         // 封装返回结果
-
         UserLoginVo userLoginVo = new UserLoginVo();
         userLoginVo.setToken(token);
-        userLoginVo.setUser(new User(user.getUserId(), user.getUserName(), user.getUserAvatar()));
+        userLoginVo.setUserRegisterVo(new UserRegisterVo(user.getUserId(), user.getUserName(), user.getUserAvatar()));
         return userLoginVo;
     }
 
@@ -182,31 +190,65 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
         LambdaUpdateWrapper<SysUser> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(SysUser::getUserId, userId);
+
+        // 验证并设置用户名
+        if (userName != null) {
+            if (userName.length() < 3 || userName.length() > 20) {
+                throw new ServiceException("用户名长度需为3-20个字符");
+
+            } else {
+                String namePattern = "^(?=.*[A-Za-z])(?=.*[\\d@$!%*#?&])[A-Za-z\\d@$!%*#?&]{3,}$";
+                if (!Pattern.matches(namePattern, userName)) {
+                    throw new ServiceException("用户名格式不符合要求");
+                } else {
+                    updateWrapper.set(SysUser::getUserName, userName);
+                }
+            }
+        }
+        // 验证并设置用户简介
+        if (userBio != null) {
+            if (userBio.length() > 500) {
+                throw new ServiceException("简介最多500字");
+            } else {
+                updateWrapper.set(SysUser::getUserBio, userBio);
+            }
+        }
+        // 验证并设置生日
+        if (userBirth != null) {
+            if (userBirth.isAfter(LocalDate.now())) {
+                throw new ServiceException("生日必须为过去日期");
+            } else {
+                updateWrapper.set(SysUser::getUserBirth, userBirth);
+            }
+        }
+
+        // 验证并设置邮箱
+        if (userEmail != null) {
+            String emailPattern = "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$";
+            if (!Pattern.matches(emailPattern, userEmail)) {
+                throw new ServiceException("邮箱格式不正确");
+            } else {
+                updateWrapper.set(SysUser::getUserEmail, userEmail);
+            }
+        }
+
+        // 验证并设置性别
+        if (userSex != null) {
+            if (userSex < 0 || userSex > 1) {
+                throw new ServiceException("性别参数不合法");
+            } else {
+                updateWrapper.set(SysUser::getUserSex, userSex);
+            }
+        }
         // 删除之前用户存放在minio中的头像地址
-        if (userAvatar != null) {
+        if (userAvatar != null && !userAvatar.isEmpty()) {
             // 删除之前用户存放在minio中的头像地址
             if (sysUser.getUserAvatar() != null) {
                 fileService.deleteFile(sysUser.getUserAvatar());
             }
             // 上传新的头像到minio
-            String fileName = fileService.uploadImageFile(userAvatar, UploadFileType.USER_AVATAR);
-            updateWrapper.set(SysUser::getUserAvatar, fileName);
-        }
-        // 动态设置要更新的字段
-        if (userName != null) {
-            updateWrapper.set(SysUser::getUserName, userName);
-        }
-        if (userBio != null) {
-            updateWrapper.set(SysUser::getUserBio, userBio);
-        }
-        if (userBirth != null) {
-            updateWrapper.set(SysUser::getUserBirth, userBirth);
-        }
-        if (userEmail != null) {
-            updateWrapper.set(SysUser::getUserEmail, userEmail);
-        }
-        if (userSex != null) {
-            updateWrapper.set(SysUser::getUserSex, userSex);
+            String userAvatarUrl = fileService.uploadImageFile(userAvatar, UploadFileType.USER_AVATAR);
+            updateWrapper.set(SysUser::getUserAvatar, userAvatarUrl);
         }
         // 执行更新操作
         return sysUserMapper.update(null, updateWrapper) > 0;

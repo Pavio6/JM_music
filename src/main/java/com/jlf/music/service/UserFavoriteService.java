@@ -26,5 +26,8 @@ public interface UserFavoriteService extends IService<UserFavorite> {
      */
     IPage<SongBasicInfoVo> getFavoriteSongsList(Long userId, PageRequest pageRequest);
 
-
+    /**
+     * 获取用户个人收藏歌曲列表
+     */
+    IPage<SongBasicInfoVo> getMineFavoriteSongsList(PageRequest pageRequest);
 }
