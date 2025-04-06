@@ -61,6 +61,9 @@ public class AdminSingerInfoController {
         return Result.success(singerVo);
     }
 
+    /**
+     * 获取歌手下拉菜单
+     */
     @GetMapping("/options")
     public Result<List<SingerOptionVo>> getSingerOptions() {
         // 获取歌手信息列表
@@ -75,5 +78,13 @@ public class AdminSingerInfoController {
                 })
                 .toList();
         return Result.success(singerOptionVoList);
+    }
+    /**
+     * 新增歌手
+     */
+    @PostMapping
+    public Result<Boolean> addSinger(@RequestPart(value = "singerFormDTO", required = false) SingerFormDTO singerFormDTO,
+                                        @RequestPart(value = "singerAvatar", required = false) MultipartFile avatarFile) {
+        return Result.success(singerInfoService.addSinger(singerFormDTO, avatarFile));
     }
 }

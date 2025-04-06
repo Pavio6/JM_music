@@ -1,7 +1,6 @@
 package com.jlf.music.controller.qry;
 
 import com.jlf.music.common.PageRequest;
-import com.jlf.music.entity.AlbumInfo;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;

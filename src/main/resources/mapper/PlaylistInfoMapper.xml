@@ -3,6 +3,7 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.jlf.music.mapper.PlaylistInfoMapper">
+
     <!--
     resultMap：将数据库查询结果映射到Java对象上
     -->
@@ -69,5 +70,63 @@
         LEFT JOIN jm_music.singer_info sii
         ON si.singer_id = sii.singer_id AND sii.delete_flag = 0
         WHERE pi.playlist_id = #{playlistId} AND pi.delete_flag = 0
+    </select>
+    <!--  获取歌单列表  -->
+    <select id="getPlaylistList" resultType="com.jlf.music.controller.vo.PlaylistBasicInfoVo">
+        SELECT DISTINCT
+        p.playlist_id AS playlistId,
+        p.playlist_name AS playlistName,
+        p.playlist_cover AS playlistCover,
+        u.user_name AS creatorName,
+        p.create_time AS createTime,
+        p.play_count AS playCount,
+        p.status
+        FROM
+        playlist_info p
+        LEFT JOIN
+        sys_user u ON p.creator_id = u.user_id and u.delete_flag = 0
+        LEFT JOIN
+        playlist_tags pt ON p.playlist_id = pt.playlist_id
+        where
+        p.delete_flag = 0
+        <if test="playlistPageQry.playlistName != null and playlistPageQry.playlistName != ''">
+            AND p.playlist_name LIKE CONCAT('%', #{playlistPageQry.playlistName}, '%')
+        </if>
+        <if test="playlistPageQry.tagId != null">
+            AND pt.tag_id = #{playlistPageQry.tagId}
+        </if>
+        <if test="playlistPageQry.status != null">
+            AND p.status = #{playlistPageQry.status}
+        </if>
+        ORDER BY p.create_time DESC
+    </select>
+    <!--  获取歌单拥有的标签列表  -->
+    <select id="getTags" resultType="com.jlf.music.entity.TagsInfo">
+        SELECT t.tag_id   AS tagId,
+               t.tag_name AS tagName,
+               t.tag_type AS tagType
+        FROM playlist_tags pt
+                 INNER JOIN
+             tags_info t ON pt.tag_id = t.tag_id
+        WHERE pt.playlist_id = #{playlistId}
+          AND t.delete_flag = 0
+    </select>
+    <!-- 获取歌单拥有的歌曲列表 -->
+    <select id="getSongs" resultType="com.jlf.music.controller.vo.PlaylistSongVo">
+        SELECT s.song_id      AS songId,
+               s.song_name    AS songName,
+               si.singer_name AS singerName,
+               ai.album_name  AS albumName
+        FROM playlist_song ps
+                 INNER JOIN
+             song_info s ON ps.song_id = s.song_id
+                 LEFT JOIN
+             singer_info si ON s.singer_id = si.singer_id
+                 LEFT JOIN
+             album_info ai ON s.album_id = ai.album_id
+        WHERE ps.playlist_id = #{playlistId}
+          AND s.delete_flag = 0
+          AND (si.delete_flag IS NULL OR si.delete_flag = 0)
+          AND (ai.delete_flag IS NULL OR ai.delete_flag = 0)
     </select>
 </mapper>

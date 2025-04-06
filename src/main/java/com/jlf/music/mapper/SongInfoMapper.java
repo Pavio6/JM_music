@@ -23,7 +23,7 @@ public interface SongInfoMapper extends BaseMapper<SongInfo> {
      * @param songQry 分页参数
      * @return SongVo
      */
-    IPage<SongBasicInfoVo> getSongsByPage(IPage<SongInfo> page, @Param("songQry") SongQry songQry);
+    IPage<SongBasicInfoVo> getSongsByPage(IPage<SongBasicInfoVo> page, @Param("songQry") SongQry songQry);
 
     /**
      * 根据专辑id获取所有歌曲
@@ -33,24 +33,7 @@ public interface SongInfoMapper extends BaseMapper<SongInfo> {
      */
     List<SongBasicInfoVo> getSongsByAlbumId(@Param("albumId") Long albumId);
 
-    /**
-     * 查询最近歌曲列表
-     * DESC(Descending) 降序
-     */
-    @Select("SELECT " +
-            "s.song_id AS songId, " +
-            "s.song_name AS songName, " +
-            "s.song_duration AS songDuration, " +
-            "s.song_cover AS songCover, " +
-            "si.singer_name AS singerName " +
-            "sm.mv_id AS mvId" +
-            "FROM song_info s " +
-            "LEFT JOIN singer_info si ON s.singer_id = si.singer_id " +
-            "LEFT JOIN song_mv sm on s.sing_id = sm.sing_id" +
-            "WHERE s.delete_flag = 0 " +
-            "ORDER BY s.create_time DESC " +
-            "LIMIT 2")
-    List<SongBasicInfoVo> findLatestSongs();
+
 
     /**
      * 分页查询用户喜欢歌曲列表

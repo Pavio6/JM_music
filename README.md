@@ -21,4 +21,4 @@
 ### 安装步骤
 1. 克隆仓库：
    ```bash
-   git clone https://github.com/你的用户名/JM_music.git
+   git clone https://github.com/Pavio6/JM_music.git

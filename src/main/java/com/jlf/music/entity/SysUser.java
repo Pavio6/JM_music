@@ -1,6 +1,8 @@
 package com.jlf.music.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
@@ -18,6 +20,7 @@ import java.util.Date;
 @Accessors(chain = true)
 @TableName("sys_user")
 @NoArgsConstructor
+@AllArgsConstructor
 public class SysUser implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
@@ -92,12 +95,14 @@ public class SysUser implements Serializable {
      * 创建时间，插入时自动填充
      */
     @TableField(value = "create_time", fill = FieldFill.INSERT)
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date createTime;
 
     /**
      * 更新时间，插入和更新时自动填充
      */
     @TableField(value = "update_time", fill = FieldFill.INSERT_UPDATE)
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date updateTime;
 
     /**

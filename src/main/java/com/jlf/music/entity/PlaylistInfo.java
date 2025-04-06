@@ -61,6 +61,11 @@ public class PlaylistInfo implements Serializable {
      */
     @TableField("play_count")
     private Long playCount;
+    /**
+     * 歌单状态
+     */
+    @TableField("status")
+    private Integer status;
 
     /**
      * 创建时间

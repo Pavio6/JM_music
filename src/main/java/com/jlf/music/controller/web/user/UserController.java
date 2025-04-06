@@ -40,9 +40,10 @@ public class UserController {
      * 用户注册
      */
     @PostMapping("/register")
-    public Result<UserRegisterVo> register(@Valid UserRegisterDTO registerDTO,
+    public Result<UserRegisterVo> register(@RequestPart("registerDTO") @Valid UserRegisterDTO registerDTO,
+                                           @RequestPart(value = "userAvatar", required = false) MultipartFile userAvatarFile,
                                            BindingResult bindingResult) {
-        return Result.success(sysUserService.register(registerDTO, bindingResult));
+        return Result.success(sysUserService.register(registerDTO, userAvatarFile, bindingResult));
     }
 
     /**

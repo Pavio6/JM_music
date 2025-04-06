@@ -4,12 +4,15 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.jlf.music.common.PageRequest;
+import com.jlf.music.common.constant.Constant;
 import com.jlf.music.common.enumerate.MessagePermissionType;
 import com.jlf.music.common.enumerate.VisibilityType;
 import com.jlf.music.common.enumerate.UploadFileType;
 import com.jlf.music.controller.dto.*;
+import com.jlf.music.controller.qry.UserQry;
 import com.jlf.music.controller.vo.*;
 import com.jlf.music.entity.SysUser;
 import com.jlf.music.entity.UserPrivacy;
@@ -71,13 +74,14 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     /**
      * 用户注册
      *
-     * @param registerDTO   注册表单DTO
-     * @param bindingResult 错误信息
+     * @param registerDTO    注册表单DTO
+     * @param userAvatarFile 用户头像
+     * @param bindingResult  错误信息
      * @return Boolean
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public UserRegisterVo register(UserRegisterDTO registerDTO, BindingResult bindingResult) {
+    public UserRegisterVo register(UserRegisterDTO registerDTO, MultipartFile userAvatarFile, BindingResult bindingResult) {
         // 验证存在错误
         if (bindingResult.hasErrors()) {
             // 获取绑定错误中的第一个字段错误
@@ -95,14 +99,14 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new ServiceException("邮箱已被注册");
         }
         // 上传用户头像到minio
-        String avatarUrl = fileService.uploadImageFile(registerDTO.getUserAvatar(), UploadFileType.USER_AVATAR);
+        String userAvatar = userAvatarFile != null ? fileService.uploadImageFile(userAvatarFile, UploadFileType.USER_AVATAR) : null;
         SysUser sysUser = CopyUtils.classCopy(registerDTO, SysUser.class);
         // 密码加密
         // 使用 PasswordEncoder 加密密码
         String encodedPassword = passwordEncoder.encode(registerDTO.getUserPass());
         sysUser.setUserPass(encodedPassword)
-                .setUserAvatar(avatarUrl)
-                .setType(0);
+                .setUserAvatar(userAvatar)
+                .setType(Constant.INTEGER_ZERO);
         // 插入用户信息
         if (sysUserMapper.insert(sysUser) <= 0) {
             throw new ServiceException("注册失败");
@@ -331,6 +335,55 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                 .setUserEmail(sysUser.getUserEmail())
                 .setUserSex(sysUser.getUserSex())
                 .setUserPrivacy(CopyUtils.classCopy(userPrivacy, UserPrivacyBasicInfoVo.class));
+    }
+
+    /**
+     * 获取用户列表
+     */
+    @Override
+    public IPage<SysUser> getUserList(UserQry userQry) {
+        Page<SysUser> page = new Page<>(userQry.getPageNum(), userQry.getPageSize());
+        return sysUserMapper.getUserList(page, userQry);
+    }
+
+    /**
+     * 更新管理员信息
+     */
+    @Override
+    @Transactional
+    public Boolean updateAdmin(Long userId, UserUpdateDTO userFormDTO, MultipartFile userAvatarFile) {
+        SysUser admin = this.getById(userId);
+        if (admin == null) {
+            throw new ServiceException("不存在该用户");
+        }
+        if (!Objects.equals(admin.getType(), Constant.INTEGER_ONE)) {
+            throw new ServiceException("该用户不是管理员, 不能对其进行修改");
+        }
+        String userAvatar = userAvatarFile != null ? fileService.uploadImageFile(userAvatarFile, UploadFileType.USER_AVATAR) : null;
+        if (userAvatar != null && !userAvatar.isEmpty()) {
+            fileService.deleteFile(admin.getUserAvatar());
+            admin.setUserAvatar(userAvatar);
+        }
+        // 更新非空字段
+        if (userFormDTO.getUserName() != null && !userFormDTO.getUserName().isEmpty()) {
+            admin.setUserName(userFormDTO.getUserName());
+        }
+        if (userFormDTO.getUserEmail() != null && !userFormDTO.getUserEmail().isEmpty()) {
+            admin.setUserEmail(userFormDTO.getUserEmail());
+        }
+        if (userFormDTO.getUserBio() != null && !userFormDTO.getUserBio().isEmpty()) {
+            admin.setUserBio(userFormDTO.getUserBio());
+        }
+        if (userFormDTO.getUserBirth() != null) {
+            admin.setUserBirth(userFormDTO.getUserBirth());
+        }
+        if (userFormDTO.getUserSex() != null) {
+            admin.setUserSex(userFormDTO.getUserSex());
+        }
+        if (userFormDTO.getUserStatus() != null) {
+            admin.setUserStatus(userFormDTO.getUserStatus());
+        }
+        return sysUserMapper.updateById(admin) > 0;
     }
 
 

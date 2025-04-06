@@ -12,5 +12,5 @@ import org.apache.ibatis.annotations.Param;
 @Mapper
 public interface SingerInfoMapper extends BaseMapper<SingerInfo> {
 
-    IPage<SingerVo> getSingersByPage(@Param("page") Page<SingerInfo> page, @Param("singerQry") SingerQry singerQry);
+    IPage<SingerVo> getSingersByPage(@Param("page") Page<SingerVo> page, @Param("singerQry") SingerQry singerQry);
 }

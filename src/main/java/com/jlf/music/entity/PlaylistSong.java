@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 
 import java.io.Serial;
@@ -16,6 +17,7 @@ import java.util.Date;
 @Data
 @Accessors(chain = true)
 @TableName("playlist_song")
+@NoArgsConstructor
 public class PlaylistSong implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
@@ -44,11 +46,6 @@ public class PlaylistSong implements Serializable {
     @TableField(value = "update_time", fill = FieldFill.INSERT_UPDATE)
     private Date updateTime;
 
-    /**
-     * 删除标志（0-未删除，1-已删除）
-     */
-    @TableField(value = "delete_flag", fill = FieldFill.INSERT)
-    private Integer deleteFlag;
 
     /**
      * 构造函数

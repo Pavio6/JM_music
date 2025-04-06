@@ -27,12 +27,14 @@ import com.jlf.music.service.FileService;
 import com.jlf.music.service.SingerInfoService;
 import com.jlf.music.utils.CopyUtils;
 import jakarta.annotation.Resource;
+import org.apache.tomcat.util.net.ServletConnectionImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -62,7 +64,7 @@ public class SingerInfoServiceImpl extends ServiceImpl<SingerInfoMapper, SingerI
      */
     @Override
     public IPage<SingerVo> getSingersByPage(SingerQry singerQry) {
-        Page<SingerInfo> page = new Page<>(singerQry.getPageNum(), singerQry.getPageSize());
+        Page<SingerVo> page = new Page<>(singerQry.getPageNum(), singerQry.getPageSize());
         return singerInfoMapper.getSingersByPage(page, singerQry);
     }
 
@@ -188,5 +190,40 @@ public class SingerInfoServiceImpl extends ServiceImpl<SingerInfoMapper, SingerI
         }
 
         return singerInfoMapper.updateById(singerInfo) > 0;
+    }
+
+    /**
+     * 新增歌手
+     */
+    @Override
+    public Boolean addSinger(SingerFormDTO singerFormDTO, MultipartFile avatarFile) {
+        // 判断参数是否合法
+        if (singerFormDTO.getSingerName() == null || singerFormDTO.getSingerName().isBlank()) {
+            throw new ServiceException("歌手名称不能为空!");
+        }
+        if (singerFormDTO.getSingerNat() == null || singerFormDTO.getSingerNat().isBlank()) {
+            throw new ServiceException("歌手国籍不能为空!");
+        }
+        if (singerFormDTO.getSingerBirth() == null) {
+            throw new ServiceException("歌手出生日期不能为空!");
+        }
+        if (singerFormDTO.getSingerBirth().isAfter(LocalDate.now())) {
+            throw new ServiceException("出生日期不能晚于当前日期");
+        }
+        if (singerFormDTO.getSingerDebutDate() != null) {
+            if (singerFormDTO.getSingerDebutDate().isAfter(LocalDate.now())) {
+                throw new ServiceException("出道日期不能晚于当前日期");
+            }
+        }
+        if (singerFormDTO.getSingerSex() != 0 && singerFormDTO.getSingerSex() != 1) {
+            throw new ServiceException("性别不合法");
+        }
+        SingerInfo singerInfo = new SingerInfo();
+        CopyUtils.classCopy(singerFormDTO, singerInfo);
+        String singerAvatar = avatarFile != null ? fileService.uploadImageFile(avatarFile, UploadFileType.SINGER_AVATAR) : null;
+        if (singerAvatar != null) {
+            singerInfo.setSingerAvatar(singerAvatar);
+        }
+        return singerInfoMapper.insert(singerInfo) > 0;
     }
 }

@@ -48,10 +48,26 @@
 ###### 队列(Queue)
 
 - 队列是消息的存储容器，用于存储消息，直到消费者从队列中取出并处理消息。队列是消息的最终目的地。
+
 ### WebSocket + RabbitMQ
+
 - 一个用户有多个连接记录
-  - 多设备登录场景
-  - 更优雅地处理网络波动和重连
-  - 提供更准确的在线状态管理
-  - 增强安全性和用户体验
-  - 实现跨设备状态同步
+    - 多设备登录场景
+    - 更优雅地处理网络波动和重连
+    - 提供更准确的在线状态管理
+    - 增强安全性和用户体验
+    - 实现跨设备状态同步
+
+### ContentType 和 headers
+#### ContentType
+1. contentType指定对象的MIME类型，告知客户端如何处理
+2. 设置HTTP响应的Content-Type头：浏览器根据该值觉得如何渲染内容。
+3. 示例：
+    - text/plain：直接显示文本内容。
+    - application/pdf：在浏览器中内嵌PDF阅读器打开。
+    - image/png：直接显示图片。
+#### headers
+1. 设置自定义HTTP头，控制客户端的行为或附加元数据。
+2. 示例：.headers(Map.of("Content-Disposition", "inline"))
+   - Content-Disposition：
+   * inline：内容直接显示在页面中（如文本、图片）。

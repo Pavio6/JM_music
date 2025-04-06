@@ -13,15 +13,14 @@ import com.jlf.music.common.enumerate.CreatorType;
 import com.jlf.music.common.enumerate.UploadFileType;
 import com.jlf.music.controller.dto.EditPlaylistDTO;
 import com.jlf.music.controller.dto.PlaylistDetailDTO;
+import com.jlf.music.controller.dto.PlaylistFormDTO;
 import com.jlf.music.controller.qry.PlaylistPageQry;
 import com.jlf.music.controller.vo.PlaylistBasicInfoVo;
+import com.jlf.music.controller.vo.PlaylistSongVo;
 import com.jlf.music.entity.*;
 import com.jlf.music.exception.ServiceException;
 import com.jlf.music.mapper.*;
-import com.jlf.music.service.FileService;
-import com.jlf.music.service.PlaylistInfoService;
-import com.jlf.music.service.SysUserService;
-import com.jlf.music.service.UserListeningRecordService;
+import com.jlf.music.service.*;
 import com.jlf.music.utils.CopyUtils;
 import com.jlf.music.utils.SecurityUtils;
 import jakarta.annotation.Resource;
@@ -30,6 +29,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 
 import static com.jlf.music.common.constant.PlaylistConstant.*;
@@ -54,7 +55,9 @@ public class PlaylistInfoServiceImpl extends ServiceImpl<PlaylistInfoMapper, Pla
     @Resource
     private TagsInfoMapper tagsInfoMapper;
     @Resource
-    private UserListeningRecordService userListeningRecordService;
+    private PlaylistTagsService playlistTagsService;
+    @Resource
+    private PlaylistSongService playlistSongService;
 
     /**
      * 创建歌单
@@ -247,10 +250,7 @@ public class PlaylistInfoServiceImpl extends ServiceImpl<PlaylistInfoMapper, Pla
     @Override
     public PlaylistDetailDTO getPlaylistDetailById(Long playlistId) {
         // 获取歌单详细信息
-        PlaylistDetailDTO playlistDetail = playlistInfoMapper.findPlaylistDetail(playlistId);
-        // 歌单播放量+1
-
-        return playlistDetail;
+        return playlistInfoMapper.findPlaylistDetail(playlistId);
     }
 
     /**
@@ -298,5 +298,132 @@ public class PlaylistInfoServiceImpl extends ServiceImpl<PlaylistInfoMapper, Pla
     @Override
     public IPage<PlaylistBasicInfoVo> getPlaylistsByUserId(Long userId, PageRequest pageRequest) {
         return null;
+    }
+
+    /**
+     * 获取歌单列表
+     */
+    @Override
+    public IPage<PlaylistBasicInfoVo> selectPlaylist(PlaylistPageQry playlistPageQry) {
+        Page<PlaylistBasicInfoVo> page = new Page<>(playlistPageQry.getPageNum(), playlistPageQry.getPageSize());
+        IPage<PlaylistBasicInfoVo> playlistPage = playlistInfoMapper.getPlaylistList(page, playlistPageQry);
+        List<PlaylistBasicInfoVo> playlistList = playlistPage.getRecords();
+        for (PlaylistBasicInfoVo vo : playlistList) {
+            List<TagsInfo> tags = playlistInfoMapper.getTags(vo.getPlaylistId());
+            vo.setTags(tags);
+            List<PlaylistSongVo> songs = playlistInfoMapper.getSongs(vo.getPlaylistId());
+            vo.setSongs(songs);
+        }
+        return playlistPage;
+    }
+
+    /**
+     * 添加歌单
+     */
+    @Override
+    @Transactional
+    public Boolean addPlaylist(PlaylistFormDTO playlistFormDTO, MultipartFile playlistCoverFile) {
+        PlaylistInfo playlistInfo = new PlaylistInfo();
+        if (playlistFormDTO.getPlaylistName() != null && !playlistFormDTO.getPlaylistName().isBlank()) {
+            if (playlistInfoMapper.selectOne(new LambdaQueryWrapper<PlaylistInfo>()
+                    .eq(PlaylistInfo::getPlaylistName, playlistFormDTO.getPlaylistName())) != null) {
+                throw new ServiceException("歌单已存在, 不能重复创建歌单");
+            }
+            playlistInfo.setPlaylistName(playlistFormDTO.getPlaylistName());
+        }
+        String playlistCover = playlistCoverFile != null ? fileService.uploadImageFile(playlistCoverFile, UploadFileType.PLAYLIST_COVER) : null;
+        playlistInfo.setPlaylistCover(playlistCover)
+                .setCreatorType(CreatorType.ADMIN)
+                .setCreatorId(SecurityUtils.getUserId())
+                .setPlaylistBio(playlistFormDTO.getPlaylistBio());
+        playlistInfoMapper.insert(playlistInfo);
+        if (playlistFormDTO.getTagIds() != null && !playlistFormDTO.getTagIds().isEmpty()) {
+            if (playlistFormDTO.getTagIds().size() > 3) {
+                throw new ServiceException("歌单标签不能超过3个");
+            }
+            List<PlaylistTags> playlistTags = new ArrayList<>();
+            for (Long tagId : playlistFormDTO.getTagIds()) {
+                playlistTags.add(new PlaylistTags(playlistInfo.getPlaylistId(), tagId));
+            }
+            playlistTagsService.saveBatch(playlistTags);
+        }
+        if (playlistFormDTO.getSongIds() != null && !playlistFormDTO.getSongIds().isEmpty()) {
+            List<PlaylistSong> playlistSongs = new ArrayList<>();
+            for (Long songId : playlistFormDTO.getSongIds()) {
+                playlistSongs.add(new PlaylistSong(playlistInfo.getPlaylistId(), songId));
+            }
+            playlistSongService.saveBatch(playlistSongs);
+        }
+        return true;
+    }
+
+    /**
+     * 更新歌单
+     */
+    @Override
+    @Transactional
+    public Boolean updatePlaylist(PlaylistFormDTO playlistFormDTO, MultipartFile playlistCoverFile, Long playlistId) {
+        PlaylistInfo playlistInfo = this.getById(playlistId);
+        if (playlistInfo == null) {
+            throw new ServiceException("歌单不存在");
+        }
+        String playlistCover = playlistCoverFile != null ? fileService.uploadImageFile(playlistCoverFile, UploadFileType.PLAYLIST_COVER) : null;
+        LambdaUpdateWrapper<PlaylistInfo> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(PlaylistInfo::getPlaylistId, playlistId);
+        PlaylistInfo updateInfo = new PlaylistInfo();
+        updateInfo.setPlaylistName(playlistFormDTO.getPlaylistName())
+                .setStatus(playlistFormDTO.getStatus())
+                .setPlaylistBio(playlistFormDTO.getPlaylistBio());
+        if (playlistCover != null) {
+            // 删除之前的图片
+            fileService.deleteFile(playlistInfo.getPlaylistCover());
+            updateInfo.setPlaylistCover(playlistCover);
+        }
+        // 更新playlistInfo
+        this.update(updateInfo, wrapper);
+        // 删除旧的tags 并更新新的tags
+        /*List<Long> oldTagsId = playlistTagsMapper.selectList(new LambdaQueryWrapper<PlaylistTags>()
+                        .eq(PlaylistTags::getPlaylistId, playlistId))
+                .stream()
+                .map(PlaylistTags::getTagId)
+                .toList();*/
+        playlistTagsMapper.delete(new LambdaQueryWrapper<PlaylistTags>()
+                .eq(PlaylistTags::getPlaylistId, playlistId));
+        // 循环更新新的tags
+        for (Long tagId : playlistFormDTO.getTagIds()) {
+            PlaylistTags playlistTags = new PlaylistTags(playlistInfo.getPlaylistId(), tagId);
+            playlistTagsMapper.insert(playlistTags);
+        }
+        /*List<Long> oldSongsId = playlistSongMapper.selectList(new LambdaQueryWrapper<PlaylistSong>()
+                        .eq(PlaylistSong::getPlaylistId, playlistId))
+                .stream()
+                .map(PlaylistSong::getSongId)
+                .toList();*/
+        playlistSongMapper.delete(new LambdaQueryWrapper<PlaylistSong>()
+                .eq(PlaylistSong::getPlaylistId, playlistId));
+
+        for (Long songId : playlistFormDTO.getSongIds()) {
+            PlaylistSong playlistSong = new PlaylistSong(playlistInfo.getPlaylistId(), songId);
+            playlistSongMapper.insert(playlistSong);
+        }
+        return true;
+    }
+
+    /**
+     * 获取管理端歌单详情
+     */
+    @Override
+    public PlaylistBasicInfoVo getAdminPlaylistDetailById(Long playlistId) {
+        PlaylistInfo playlistInfo = this.getById(playlistId);
+        PlaylistBasicInfoVo vo = CopyUtils.classCopy(playlistInfo, PlaylistBasicInfoVo.class);
+        vo.setCreatorName(sysUserMapper.selectById(playlistInfo.getCreatorId()).getUserName())
+                .setCreateTime(playlistInfo.getCreateTime().toInstant()
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalDateTime());
+        List<TagsInfo> tags = playlistInfoMapper.getTags(playlistId);
+        vo.setTags(tags);
+        List<PlaylistSongVo> songs = playlistInfoMapper.getSongs(playlistId);
+        vo.setSongs(songs);
+        return vo;
     }
 }

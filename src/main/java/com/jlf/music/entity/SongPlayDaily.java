@@ -1,5 +1,7 @@
 package com.jlf.music.entity;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
@@ -19,7 +21,7 @@ public class SongPlayDaily {
     /**
      * 主键ID
      */
-    @TableField("id")
+    @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
     /**

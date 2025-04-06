@@ -1,13 +1,10 @@
 package com.jlf.music.controller.web.user;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.jlf.music.common.PageRequest;
 import com.jlf.music.common.Result;
 import com.jlf.music.controller.vo.SongBasicInfoVo;
 import com.jlf.music.controller.vo.SongLyricsAndAudioVo;
 import com.jlf.music.service.SongInfoService;
 import jakarta.annotation.Resource;
-import jakarta.validation.constraints.Max;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

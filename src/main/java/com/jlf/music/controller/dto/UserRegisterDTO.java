@@ -44,8 +44,5 @@ public class UserRegisterDTO {
     private Integer userSex;
     @Past(message = "生日必须为过去日期")
     private LocalDate userBirth;
-    /**
-     * 用户头像
-     */
-    private MultipartFile userAvatar;
+
 }

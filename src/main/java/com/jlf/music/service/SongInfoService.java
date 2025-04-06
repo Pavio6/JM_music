@@ -24,12 +24,6 @@ public interface SongInfoService extends IService<SongInfo> {
      */
     IPage<SongBasicInfoVo> getSongsByPage(SongQry songQry);
 
-    /**
-     * 获取最近的歌曲信息
-     *
-     * @return List<SongBasicInfoVo>
-     */
-    List<SongBasicInfoVo> getLatestSongs();
 
     /**
      * 根据songId获取歌曲音频和歌词文件url
@@ -61,10 +55,6 @@ public interface SongInfoService extends IService<SongInfo> {
      */
     List<SongBasicInfoVo> getHotSongs();
 
-    /**
-     * 记录歌曲播放量
-     */
-    void recordSongPlayCount(Long songId);
 
     /**
      * 获取飙升榜

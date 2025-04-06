@@ -75,19 +75,10 @@ public class SongInfoServiceImpl extends ServiceImpl<SongInfoMapper, SongInfo>
      */
     @Override
     public IPage<SongBasicInfoVo> getSongsByPage(SongQry songQry) {
-        IPage<SongInfo> page = new Page<>(songQry.getPageNum(), songQry.getPageSize());
+        IPage<SongBasicInfoVo> page = new Page<>(songQry.getPageNum(), songQry.getPageSize());
         return songInfoMapper.getSongsByPage(page, songQry);
     }
 
-    /**
-     * 获取最近的歌曲信息
-     *
-     * @return List<SongBasicInfoVo>
-     */
-    @Override
-    public List<SongBasicInfoVo> getLatestSongs() {
-        return songInfoMapper.findLatestSongs();
-    }
 
     /**
      * 根据songId获取歌曲音频和歌词文件url
@@ -288,15 +279,7 @@ public class SongInfoServiceImpl extends ServiceImpl<SongInfoMapper, SongInfo>
         return songInfoMapper.insert(songInfo) > 0;
     }
 
-    /**
-     * 记录歌曲播放量
-     */
-    @Override
-    public void recordSongPlayCount(Long songId) {
-        String dateKey = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
-        String hashKey = SONG_DAILY_KEY_PREFIX + dateKey;
-        stringRedisTemplate.opsForHash().increment(hashKey, songId.toString(), 1);
-    }
+
 
 
     /**

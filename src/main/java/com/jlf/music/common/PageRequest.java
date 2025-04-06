@@ -2,8 +2,20 @@ package com.jlf.music.common;
 
 import lombok.Data;
 
+/**
+ * @Description 分页请求参数
+ * @Author JLF
+ * @Date 2025/4/4 15:28
+ * @Version 1.0
+ */
 @Data
 public class PageRequest {
-    private Integer pageNum = 1;  // 当前页码，默认为1
-    private Integer pageSize = 10; // 每页大小，默认为10
+    /**
+     * 当前页
+     */
+    private Integer pageNum = 1;
+    /**
+     * 每页显示条数
+     */
+    private Integer pageSize = 10;
 }

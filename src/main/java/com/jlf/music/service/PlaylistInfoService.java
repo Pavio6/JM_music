@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.jlf.music.common.PageRequest;
 import com.jlf.music.controller.dto.EditPlaylistDTO;
 import com.jlf.music.controller.dto.PlaylistDetailDTO;
+import com.jlf.music.controller.dto.PlaylistFormDTO;
 import com.jlf.music.controller.qry.PlaylistPageQry;
 import com.jlf.music.controller.vo.PlaylistBasicInfoVo;
 import com.jlf.music.entity.PlaylistInfo;
@@ -73,5 +74,24 @@ public interface PlaylistInfoService extends IService<PlaylistInfo> {
      */
     IPage<PlaylistBasicInfoVo> getPlaylistsByUserId(Long userId, PageRequest pageRequest);
 
+    /**
+     * 获取歌单列表
+     */
+    IPage<PlaylistBasicInfoVo> selectPlaylist(PlaylistPageQry playlistPageQry);
 
+    /**
+     * 添加歌单
+     */
+    Boolean addPlaylist(PlaylistFormDTO playlistFormDTO, MultipartFile playlistCoverFile);
+
+    /**
+     * 更新歌单
+     */
+    Boolean updatePlaylist(PlaylistFormDTO playlistFormDTO, MultipartFile playlistCoverFile, Long playlistId);
+
+    /**
+     * 获取管理端歌单详情
+     *
+     */
+    PlaylistBasicInfoVo getAdminPlaylistDetailById(Long playlistId);
 }

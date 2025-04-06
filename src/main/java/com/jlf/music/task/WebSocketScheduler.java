@@ -26,7 +26,7 @@ public class WebSocketScheduler {
     private final UserConnectionMapper userConnectionMapper;
     private final ConnectionService connectionService;
 
-    @Scheduled(fixedRate = 60000) // 每分钟执行一次
+    /*@Scheduled(fixedRate = 60000) // 每分钟执行一次
     public void checkStaleConnections() {
         // 获取超过心跳超时时间（例如2分钟）的活跃连接
         LocalDateTime timeoutThreshold = LocalDateTime.now().minusMinutes(2);
@@ -42,5 +42,5 @@ public class WebSocketScheduler {
             connectionService.removeConnection(conn.getUserId(), conn.getSessionId());
             log.info("用户 {} 的连接 {} 因心跳超时而关闭", conn.getUserId(), conn.getSessionId());
         }
-    }
+    }*/
 }

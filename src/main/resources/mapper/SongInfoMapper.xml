@@ -39,6 +39,7 @@
         <if test="songQry.albumId != null">
             AND ai.album_id = #{songQry.albumId}
         </if>
+
     </select>
     <!--  分页查询用户喜欢的歌曲列表  -->
     <select id="getFavoriteSongs" resultType="com.jlf.music.controller.vo.SongBasicInfoVo">

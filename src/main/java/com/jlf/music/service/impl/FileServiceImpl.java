@@ -20,6 +20,7 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -46,6 +47,11 @@ public class FileServiceImpl implements FileService {
      */
     @Override
     public Boolean deleteFile(String filePath) {
+        // 添加对filePath为null的检查
+        if (filePath == null || filePath.trim().isEmpty()) {
+            log.warn("文件路径为空，无需删除");
+            return true; // 或根据业务需求返回false
+        }
         try {
             MinIOPathParser.BucketAndFileName bucketAndFileName = MinIOPathParser.parseBucketAndFileName(filePath);
             String fileName = bucketAndFileName.fileName();
@@ -171,16 +177,29 @@ public class FileServiceImpl implements FileService {
             ensureBucketExists(bucketName);
             // 生成唯一的文件名
             String fileName = generateFileName(originalFilename);
-
-            // 上传文件到MinIO
-            minioClient.putObject(
-                    PutObjectArgs.builder()
-                            .bucket(bucketName) // 存储桶
-                            .object(fileName) // 上传到minio服务器上后 文件的名称
-                            .stream(file.getInputStream(), file.getSize(), -1)
-                            .contentType(file.getContentType())
-                            .build()
-            );
+            // 对于 .lrc文件, 大多数系统默认将其识别为application/octet-stream或text/plain等通用类型, 这会导致浏览器将文件作为下载项处理
+            // 设置Content-Disposition头来告诉浏览器如何处理文件
+            if (uploadFileType == UploadFileType.SONG_LYRICS) {
+                minioClient.putObject(
+                        PutObjectArgs.builder()
+                                .bucket(bucketName)
+                                .object(fileName)
+                                .stream(file.getInputStream(), file.getSize(), -1)
+                                .contentType("text/plain")  // 明确设置为文本类型
+                                .headers(Map.of("Content-Disposition", "inline"))  // 设置为inline直接查看
+                                .build()
+                );
+            } else {
+                // 上传文件到MinIO
+                minioClient.putObject(
+                        PutObjectArgs.builder()
+                                .bucket(bucketName) // 存储桶
+                                .object(fileName) // 上传到minio服务器上后 文件的名称
+                                .stream(file.getInputStream(), file.getSize(), -1)
+                                .contentType(file.getContentType())
+                                .build()
+                );
+            }
             log.info("歌曲资源上传成功");
             // 返回文件访问 URL
             return generateFileUrl(bucketName, fileName);
