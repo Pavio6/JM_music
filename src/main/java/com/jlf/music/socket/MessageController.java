@@ -7,21 +7,21 @@ import com.jlf.music.socket.dto.MessageDTO;
 import com.jlf.music.socket.dto.MessageRequestDTO;
 import com.jlf.music.entity.PrivateMessage;
 import com.jlf.music.utils.SecurityUtils;
+import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/messages")
-@RequiredArgsConstructor
+@RequestMapping("/api/message")
 public class MessageController {
 
-    private final PrivateMessageService privateMessageService;
+    @Resource
+    private PrivateMessageService privateMessageService;
 
     /**
-     * 获取会话列表
+     * 获取用户自己的会话列表
      */
     @GetMapping("/conversations")
     public Result<Page<ConversationDTO>> getConversations(
@@ -105,6 +105,4 @@ public class MessageController {
         boolean isOnline = privateMessageService.isUserOnline(userId);
         return Result.success(isOnline);
     }
-
-
 }

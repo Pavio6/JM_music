@@ -25,6 +25,7 @@ public enum MessageStatus {
      * 撤回
      */
     RECALLED(3);
+
     private final Integer value;
 
     MessageStatus(Integer value) {

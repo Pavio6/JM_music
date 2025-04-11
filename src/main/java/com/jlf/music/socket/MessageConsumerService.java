@@ -1,10 +1,14 @@
 package com.jlf.music.socket;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.jlf.music.common.enumerate.OnlineStatus;
 import com.jlf.music.config.RabbitMQConfig;
+import com.jlf.music.entity.UserConnection;
+import com.jlf.music.mapper.UserConnectionMapper;
 import com.jlf.music.socket.dto.MessageReadNotificationDTO;
 import com.jlf.music.socket.dto.MessageRecallNotificationDTO;
 import com.jlf.music.socket.dto.UserStatusMessageDTO;
-import lombok.RequiredArgsConstructor;
+import jakarta.annotation.Resource;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -18,13 +22,14 @@ import static com.jlf.music.common.constant.RabbitMQRoutingKeysConstant.MESSAGE_
  * 用于监听 RabbitMQ 队列中的消息，并根据消息类型处理通知逻辑
  */
 @Service
-@RequiredArgsConstructor
-public class MessageNotificationService {
-
-    private final SimpMessagingTemplate simpMessagingTemplate;
+public class MessageConsumerService {
+    @Resource
+    private SimpMessagingTemplate simpMessagingTemplate;
+    @Resource
+    private UserConnectionMapper userConnectionMapper;
 
     /**
-     * 监听消息已读通知
+     * TODO 监听消息已读通知
      * 从 RabbitMQ 的私信队列中消费消息，并根据路由键判断是否为消息已读通知
      * 如果是消息已读通知，则通过 WebSocket 通知消息发送者
      *
@@ -36,16 +41,24 @@ public class MessageNotificationService {
                                               @Header("amqp_receivedRoutingKey") String routingKey) {
         // 只处理路由键为 "message.read" 的消息
         if (MESSAGE_READ.equals(routingKey)) {
-            // 通过 WebSocket 通知消息发送者，消息已被读取
-            simpMessagingTemplate.convertAndSendToUser(
-                    notification.getSenderId().toString(), // 目标用户
-                    "/queue/messages.read", // 目标队列
-                    notification);
+            // 获取发送者id
+            Long senderId = notification.getSenderId();
+            if (isUserOnline(senderId)) {
+                // 通过 WebSocket 通知消息发送者，消息已被读取
+                simpMessagingTemplate.convertAndSendToUser(
+                        notification.getSenderId().toString(), // 目标用户
+                        "/queue/messages.read", // 目标队列
+                        notification);
+            } else {
+
+                // TODO 离线则存储到待发送队列
+                // storeUndeliveredReadReceipt(senderId, notification);
+            }
         }
     }
 
     /**
-     * 监听消息撤回通知
+     * TODO 监听消息撤回通知
      * 从 RabbitMQ 的私信队列中消费消息，并根据路由键判断是否为消息撤回通知
      * 如果是消息撤回通知，则通过 WebSocket 通知消息接收者
      *
@@ -73,10 +86,26 @@ public class MessageNotificationService {
      */
     @RabbitListener(queues = RabbitMQConfig.USER_STATUS_QUEUE)
     public void handleUserStatusChange(UserStatusMessageDTO statusMessage) {
-        // TODO 这里可能还需要判断
         // 通过 WebSocket 广播用户状态变更
         simpMessagingTemplate.convertAndSend(
-                "/topic/user.status", // 广播主题
+                "/topic/user.status", // 广播用户状态给所有订阅者
                 statusMessage);
     }
+
+    /**
+     * 检查用户是否在线
+     *
+     * @param userId 用户ID
+     * @return 用户是否在线
+     */
+    public boolean isUserOnline(Long userId) {
+        // 构建查询条件
+        LambdaQueryWrapper<UserConnection> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserConnection::getUserId, userId)
+                .eq(UserConnection::getIsOnline, OnlineStatus.ONLINE.getValue());
+
+        // 查询在线连接数量
+        return userConnectionMapper.selectCount(wrapper) > 0;
+    }
+
 }

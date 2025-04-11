@@ -117,7 +117,6 @@
             <artifactId>fastjson2</artifactId>
             <version>2.0.53</version>
         </dependency>
-
         <!--引入redis依赖-->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -141,7 +140,7 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
-        <!--与 Security 结合授权使用-->
+        <!--扩展了Spring Security的核心功能 能够与(WebSocket、STOMP)集成 实现对消息传递的安全控制-->
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-messaging</artifactId>

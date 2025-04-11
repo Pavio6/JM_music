@@ -30,6 +30,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,7 +68,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     private UserFavoriteService userFavoriteService;
     // 注入 Spring Security 的密码编码器
     @Resource
-    private PasswordEncoder passwordEncoder;
+    private BCryptPasswordEncoder passwordEncoder;
     @Resource
     private PlayQueueService playQueueService;
 
@@ -149,8 +150,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new ServiceException("验证码错误");
         }
         // 用户认证
+        log.info("开始认证");
         UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(userLoginDTO.getUserName(), userLoginDTO.getUserPass());
         Authentication authenticate = authenticationManager.authenticate(authenticationToken);
+        log.info("authenticate: {}", authenticate);
+        log.info("认证成功");
         // 生成 Token
         String token = UUID.randomUUID().toString();
         LoginUser loginUser = (LoginUser) authenticate.getPrincipal();

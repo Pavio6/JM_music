@@ -52,32 +52,13 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
         // 检查是否为STOMP协议的CONNECT命令（客户端首次连接请求）
         if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
+            // 读取headers中的token的值
             String token = accessor.getFirstNativeHeader("token");
+            log.info("收到CONNECT请求，token：{}", token);
             if (token != null & !Objects.requireNonNull(token).isEmpty()) {
                 try {
-                    String key = USER_LOGIN_KEY + token;
-                    Map<Object, Object> userMap = stringRedisTemplate.opsForHash().entries(key);
-                    if (userMap.isEmpty()) {
-                        log.warn("用户未登录或已过期");
-                        throw new InsufficientAuthenticationException("用户未登录或已过期");
-                    }
-                    List<GrantedAuthority> authorities = Arrays.stream(
-                                    ((String) userMap.get("authorities")).split(",")
-                            )
-                            .map(SimpleGrantedAuthority::new)
-                            .collect(Collectors.toList());
-
-                    // 封装用户信息到 LoginUser
-                    LoginUser loginUser = new LoginUser();
-                    loginUser.setUser(new SysUser(
-                            Long.parseLong((String) userMap.get("userId")),
-                            (String) userMap.get("userName"),
-                            (String) userMap.get("userAvatar")
-                    ));
-                    loginUser.setAuthorities(authorities);
-                    // 创建 Authentication 对象并存入 SecurityContext
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(loginUser, null, authorities);
+                    // 调用封装的方法获取认证信息
+                    UsernamePasswordAuthenticationToken authentication = getAuthenticationFromToken(token);
                     // 设置用户认证信息到WebSocket会话
                     accessor.setUser(authentication);
                 } catch (Exception e) {
@@ -86,5 +67,48 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
             }
         }
         return message;
+    }
+
+    /**
+     * 根据 Token 构建用户认证信息
+     *
+     * @param token 前端传递的认证令牌
+     * @return 包含用户信息和权限的认证对象
+     * @throws InsufficientAuthenticationException 如果出现以下情况：
+     *                                             1. Token 对应的 Redis 数据不存在（用户未登录或已过期）
+     *                                             2. 权限数据格式非法
+     * @throws NumberFormatException               如果 userId 无法转换为 Long 类型
+     */
+    private UsernamePasswordAuthenticationToken getAuthenticationFromToken(String token) {
+        Map<Object, Object> userMap = stringRedisTemplate.opsForHash().entries(USER_LOGIN_KEY + token);
+        if (userMap.isEmpty()) {
+            throw new InsufficientAuthenticationException("用户未登录或 Token 已过期");
+        }
+        LoginUser loginUser = buildLoginUserFromRedis(userMap);
+        return new UsernamePasswordAuthenticationToken(loginUser, null, loginUser.getAuthorities());
+    }
+
+    /**
+     * 从 Redis 数据构建登录用户信息
+     *
+     * @param userMap Redis 中存储的用户哈希数据
+     * @return 封装后的 LoginUser 对象
+     * @throws IllegalArgumentException 如果权限数据(authorities)不存在或格式错误
+     */
+    private LoginUser buildLoginUserFromRedis(Map<Object, Object> userMap) {
+        SysUser sysUser = new SysUser(
+                Long.parseLong((String) userMap.get("userId")),
+                (String) userMap.get("userName"),
+                (String) userMap.get("userAvatar")
+        );
+
+        List<GrantedAuthority> authorities = Arrays.stream(
+                ((String) userMap.get("authorities")).split(",")
+        ).map(SimpleGrantedAuthority::new).collect(Collectors.toList());
+
+        LoginUser loginUser = new LoginUser();
+        loginUser.setUser(sysUser);
+        loginUser.setAuthorities(authorities);
+        return loginUser;
     }
 }

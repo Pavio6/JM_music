@@ -61,6 +61,7 @@ public class PrivateMessageService {
      * @param request  消息请求对象，包含接收者ID、消息内容等信息
      * @return 发送的私信消息对象
      */
+
     @Transactional
     public PrivateMessage sendMessage(Long senderId, @NotNull MessageRequestDTO request) {
         // 创建消息
@@ -90,14 +91,13 @@ public class PrivateMessageService {
             // 更新消息状态为已送达  - TODO 可能还需要前端ACK确认机制
             message.setStatus(MessageStatus.DELIVERED.getValue());
             privateMessageMapper.updateById(message);
-        } else {
+        } /*else {
             // 接收者离线，通过RabbitMQ发送消息
             rabbitTemplate.convertAndSend(
                     RabbitMQConfig.PRIVATE_MESSAGE_EXCHANGE, // 交换机
                     MESSAGE_SEND, // 路由键
                     message); // 消息内容
-        }
-
+        }*/
         return message;
     }
 
@@ -140,7 +140,7 @@ public class PrivateMessageService {
      *
      * @param message 离线消息对象
      */
-    @RabbitListener(queues = RabbitMQConfig.PRIVATE_MESSAGE_QUEUE)
+    /*@RabbitListener(queues = RabbitMQConfig.PRIVATE_MESSAGE_QUEUE)
     public void handleOfflineMessage(PrivateMessage message,
                                      @Header("amqp_receivedRoutingKey") String routingKey) {
         // 只处理路由键为 "message.send" 的消息
@@ -158,7 +158,7 @@ public class PrivateMessageService {
             }
         }
         // 用户仍然离线，消息保留在数据库，等待用户上线时处理
-    }
+    }*/
 
     /**
      * 获取会话消息
@@ -173,23 +173,20 @@ public class PrivateMessageService {
     public List<MessageDTO> getConversationMessages(Long userId, Long otherUserId, int page, int size) {
         // 分页参数
         Page<PrivateMessage> queryPage = new Page<>(page, size);
-
         // 构建查询条件
         LambdaQueryWrapper<PrivateMessage> wrapper = new LambdaQueryWrapper<>();
-        wrapper.nested(w -> w
+        wrapper.nested(w -> w // nested：构建嵌套查询条件的方法 将一组查询条件包裹在一个逻辑块中 通常为小括号()
                         .eq(PrivateMessage::getSenderId, userId)
                         .eq(PrivateMessage::getReceiverId, otherUserId)
                         .or()
                         .eq(PrivateMessage::getSenderId, otherUserId)
                         .eq(PrivateMessage::getReceiverId, userId))
-                .orderByDesc(PrivateMessage::getCreateTime);
-
+                .ne(PrivateMessage::getStatus, MessageStatus.RECALLED.getValue()) // 状态不能是已撤回
+                .orderByDesc(PrivateMessage::getCreateTime); // 按消息创建时间降序
         // 查询消息
         Page<PrivateMessage> messagePage = privateMessageMapper.selectPage(queryPage, wrapper);
-
         // 标记来自对方的消息为已读
         markMessagesAsRead(userId, otherUserId);
-
         // 返回DTO列表
         return messagePage.getRecords().stream()
                 .map(this::convertToDTO)
@@ -211,19 +208,17 @@ public class PrivateMessageService {
                 .eq(PrivateMessage::getIsRead, false)
                 .set(PrivateMessage::getIsRead, true)
                 .set(PrivateMessage::getStatus, MessageStatus.READ.getValue());
-
         privateMessageMapper.update(null, updateWrapper);
-
         // 重置会话未读计数
         LambdaUpdateWrapper<MessageConversation> conversationUpdateWrapper = new LambdaUpdateWrapper<>();
         conversationUpdateWrapper.eq(MessageConversation::getUserId, userId)
                 .eq(MessageConversation::getOtherUserId, senderId)
                 .set(MessageConversation::getUnreadCount, 0);
-
+        // 更新会话信息
         messageConversationMapper.update(null, conversationUpdateWrapper);
-
         // 通知发送者消息已读
         MessageReadNotificationDTO notification = new MessageReadNotificationDTO(userId, senderId);
+
         rabbitTemplate.convertAndSend(
                 RabbitMQConfig.PRIVATE_MESSAGE_EXCHANGE, // 交换机
                 RabbitMQRoutingKeysConstant.MESSAGE_READ, // 路由键
@@ -297,7 +292,7 @@ public class PrivateMessageService {
         wrapper.eq(PrivateMessage::getReceiverId, userId)
                 .eq(PrivateMessage::getIsRead, false)
                 .eq(PrivateMessage::getStatus, MessageStatus.SENT.getValue())
-                .orderByAsc(PrivateMessage::getCreateTime);
+                .orderByAsc(PrivateMessage::getCreateTime); // 按发送时间升序
 
         List<PrivateMessage> offlineMessages = privateMessageMapper.selectList(wrapper);
 
@@ -363,27 +358,22 @@ public class PrivateMessageService {
     public Page<ConversationDTO> getUserConversations(Long userId, int page, int size) {
         // 分页参数
         Page<MessageConversation> queryPage = new Page<>(page, size);
-
         // 构建查询条件
         LambdaQueryWrapper<MessageConversation> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(MessageConversation::getUserId, userId)
-                .orderByDesc(MessageConversation::getLastUpdateTime);
-
+                .orderByDesc(MessageConversation::getLastUpdateTime); // 按照最后更新时间降序
         // 查询会话
         Page<MessageConversation> conversationPage = messageConversationMapper.selectPage(queryPage, wrapper);
-
         // 转换为DTO
         List<ConversationDTO> conversationDTOs = conversationPage.getRecords().stream()
                 .map(this::enrichConversation)
                 .collect(Collectors.toList());
-
         // 构建结果
         Page<ConversationDTO> result = new Page<>();
         result.setRecords(conversationDTOs);
         result.setCurrent(conversationPage.getCurrent());
         result.setSize(conversationPage.getSize());
         result.setTotal(conversationPage.getTotal());
-
         return result;
     }
 
@@ -396,13 +386,10 @@ public class PrivateMessageService {
     private ConversationDTO enrichConversation(MessageConversation conversation) {
         // 获取最后一条消息
         PrivateMessage lastMessage = privateMessageMapper.selectById(conversation.getLastMessageId());
-
         // 获取对方用户信息
         SysUser otherUser = sysUserMapper.selectById(conversation.getOtherUserId());
-
         // 检查对方是否在线
         boolean isOnline = isUserOnline(conversation.getOtherUserId());
-
         return ConversationDTO.builder()
                 .conversationId(conversation.getConversationId())
                 .otherUserId(conversation.getOtherUserId())

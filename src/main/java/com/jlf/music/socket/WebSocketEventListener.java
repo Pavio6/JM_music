@@ -1,6 +1,5 @@
 package com.jlf.music.socket;
 
-import com.jlf.music.common.enumerate.OnlineStatus;
 import com.jlf.music.security.LoginUser;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -33,13 +32,18 @@ public class WebSocketEventListener {
      */
     @EventListener
     public void handleSessionConnected(SessionConnectedEvent event) {
+        // 将Message<?>对象包装成StompHeaderAccessor对象 更方便操作消息的头部信息
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
+        // 获取当前连接的用户信息 并进行判断
         if (accessor.getUser() != null) {
+            // 获取userId
             Long userId = getUserIdFromPrincipal(accessor.getUser());
+            // 获取当前WebSocket会话的sessionId
             String sessionId = accessor.getSessionId();
             if (userId != null && sessionId != null) {
                 // 保存用户连接
                 connectionService.saveConnection(userId, sessionId);
+                log.info("用户 {} 已连接", userId);
             }
         }
     }
@@ -53,7 +57,6 @@ public class WebSocketEventListener {
     @EventListener
     public void handleSessionDisconnect(SessionDisconnectEvent event) {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
-
         if (accessor.getUser() != null) {
             Long userId = getUserIdFromPrincipal(accessor.getUser());
             String sessionId = accessor.getSessionId();

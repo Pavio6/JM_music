@@ -51,8 +51,8 @@ public class ConnectionService {
                 .build();
         // 保存连接信息到数据库
         userConnectionMapper.insert(connection);
-        // 发送用户上线状态到RabbitMQ - 异步操作
         UserStatusMessageDTO statusMessage = new UserStatusMessageDTO(userId, OnlineStatus.ONLINE);
+        // 发送用户上线状态到RabbitMQ - 异步操作
         rabbitTemplate.convertAndSend(
                 RabbitMQConfig.USER_STATUS_EXCHANGE, // 交换机
                 STATUS_ONLINE, // 路由键

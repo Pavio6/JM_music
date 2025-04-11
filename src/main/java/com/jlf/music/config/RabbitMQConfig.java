@@ -19,13 +19,11 @@ public class RabbitMQConfig {
 
     // 私信交换机
     public static final String PRIVATE_MESSAGE_EXCHANGE = "private.message.exchange";
-
     // 私信队列
     public static final String PRIVATE_MESSAGE_QUEUE = "private.message.queue";
 
     // 用户状态交换机
     public static final String USER_STATUS_EXCHANGE = "user.status.exchange";
-
     // 用户状态队列
     public static final String USER_STATUS_QUEUE = "user.status.queue";
 
