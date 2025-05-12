@@ -10,9 +10,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/**
- * 地域controller
- */
 @RestController
 @RequestMapping("/api/user/region")
 public class UserRegionController {

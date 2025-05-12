@@ -7,6 +7,7 @@ import lombok.experimental.Accessors;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Accessors(chain = true)
 @Data
@@ -33,4 +34,5 @@ public class AlbumVo {
     private String singerName;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+    private List<SongBasicInfoVo> songs;
 }

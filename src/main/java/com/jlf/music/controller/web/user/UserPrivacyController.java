@@ -17,16 +17,9 @@ public class UserPrivacyController {
     /**
      * 更新用户个人隐私设置
      */
-    @PutMapping("/update/")
+    @PutMapping("/update")
     public Result<Boolean> updatePrivacySettings(@RequestBody UserPrivacyDTO privacyDTO) {
         return Result.success(userPrivacyService.updatePrivacySettings(privacyDTO));
-    }
-    /**
-     * 获取用户隐私设置
-     */
-    @GetMapping("/get/{id}")
-    public Result<UserPrivacyDTO> getPrivacySettings(@PathVariable(value = "id") Long id) {
-       return Result.success(userPrivacyService.getPrivacySettings(id));
     }
 
 }

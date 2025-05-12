@@ -32,11 +32,11 @@ public class RedisConstant {
     public static final String FAVORITE_SONG_KEY_PREFIX = "favorite:song:"; // 用户喜欢的歌曲
     public static final String FAVORITE_PLAYLIST_KEY_PREFIX = "favorite:singer:"; // 用户喜欢的歌单
     public static final String FAVORITE_ALBUM_KEY_PREFIX = "favorite:album:"; // 用户喜欢的专辑
-    public static final String FOLLOWERS_COUNT = "followers:count:"; // 歌手的粉丝数量
     /**
-     * 用户每日听歌时长
+     * 歌手粉丝数量
      */
-    public static final String DAILY_DURATION_KEY_PREFIX = "user:daily:duration:";
+    public static final String FOLLOWERS_COUNT = "singer:followers:count:";
+
     /**
      * 用户最常听的歌手
      */
@@ -57,9 +57,5 @@ public class RedisConstant {
      * 飙升榜key
      */
     public static final String RISING_SONGS_CACHE_KEY = "risingSongs:";
-    /**
-     * 歌曲日播放量key
-     */
-    public static final String SONG_DAILY_KEY_PREFIX = "song:daily:";
 
 }

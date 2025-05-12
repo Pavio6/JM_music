@@ -60,6 +60,21 @@ public class SongMv implements Serializable {
      */
     @TableField("song_id")
     private Long songId;
+    /**
+     * 歌曲名称
+     */
+    @TableField("song_name")
+    private String songName;
+    /**
+     * mv播放量
+     */
+    @TableField("play_count")
+    private Integer playCount;
+    /**
+     * mv封面图
+     */
+    @TableField("mv_cover")
+    private String mvCover;
 
     /**
      * 创建时间，插入时自动填充

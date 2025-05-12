@@ -1,8 +1,11 @@
 package com.jlf.music.controller.web.user;
 
 import com.jlf.music.common.Result;
+import com.jlf.music.common.enumerate.TargetType;
 import com.jlf.music.controller.vo.SongBasicInfoVo;
+import com.jlf.music.controller.vo.SongDetailVo;
 import com.jlf.music.controller.vo.SongLyricsAndAudioVo;
+import com.jlf.music.exception.ServiceException;
 import com.jlf.music.service.SongInfoService;
 import jakarta.annotation.Resource;
 import org.springframework.core.io.InputStreamResource;
@@ -20,19 +23,9 @@ public class UserSongController {
     @Resource
     private SongInfoService songInfoService;
 
-    /**
-     * 获取最新的歌曲信息列表
-     *
-     * @return List<SongBasicInfoVo>
-     */
-   /* @GetMapping("/latest")
-    public Result<List<SongBasicInfoVo>> getLatestSongs() {
-        return Result.success(songInfoService.getLatestSongs());
-    }*/
 
     /**
      * 根据歌曲ID查询歌曲音频歌词文件URL
-     * TODO 应该是为了播放音乐 此时可以记录音乐的播放量
      *
      * @return 音频文件URL
      */
@@ -55,6 +48,7 @@ public class UserSongController {
 
     /**
      * 获取新歌榜
+     * 根据发行日期降序返回
      *
      * @return 歌曲列表
      */
@@ -66,6 +60,7 @@ public class UserSongController {
 
     /**
      * 获取热歌榜
+     * 根据播放量降序返回
      *
      * @return 歌曲列表
      */
@@ -77,6 +72,7 @@ public class UserSongController {
 
     /**
      * 获取飙升榜
+     * 根据前两天 - 前一天的播放量的值 进行降序返回
      *
      * @return 歌曲列表
      */
@@ -84,5 +80,28 @@ public class UserSongController {
     public Result<List<SongBasicInfoVo>> getRisingSongs() {
 
         return Result.success(songInfoService.getRisingSongs());
+    }
+
+    /**
+     * 根据id增加播放量
+     *
+     * @param targetId   歌曲/歌单id
+     * @param targetType 歌曲/歌单
+     * @return Boolean
+     */
+    @PostMapping("/{targetId}/playCount")
+    public Result<Boolean> incrementPlayCount(@PathVariable(value = "targetId") Long targetId, @RequestParam String targetType) {
+        return Result.success(songInfoService.incrementPlayCountByTargetId(targetId, targetType));
+    }
+
+    /**
+     * 获取歌曲详情
+     */
+    @GetMapping("/{songId}/detail")
+    public Result<SongDetailVo> getSongDetail(@PathVariable Long songId) {
+        if (songInfoService.getById(songId) == null) {
+            throw new ServiceException("歌曲不存在");
+        }
+        return Result.success(songInfoService.getSongDetail(songId));
     }
 }

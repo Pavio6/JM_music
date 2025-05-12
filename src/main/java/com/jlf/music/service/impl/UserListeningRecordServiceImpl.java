@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.jlf.music.controller.vo.SongRankingDailyVo;
 import com.jlf.music.controller.vo.Top3ListeningSingerVo;
+import com.jlf.music.controller.vo.UserListenTimeVo;
 import com.jlf.music.entity.SingerInfo;
 import com.jlf.music.entity.SongInfo;
 import com.jlf.music.entity.UserListeningRecord;
@@ -28,6 +29,8 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static com.jlf.music.common.constant.MusicConstant.DAILY_LISTENING_DURATION_THRESHOLD;
+import static com.jlf.music.common.constant.MusicConstant.DAILY_LISTENING_TIME_USER_KEY_PREFIX;
 import static com.jlf.music.common.constant.RedisConstant.*;
 
 @Service
@@ -67,11 +70,7 @@ public class UserListeningRecordServiceImpl extends ServiceImpl<UserListeningRec
                 .setSongId(songId)
                 .setPlayDuration(playDuration)
                 .setIsComplete(TimeConverter.convertToSeconds(songInfo.getSongDuration()) * 0.95 <= playDuration ? 1 : 0); // 允许5%的误差
-        boolean success = userListeningRecordMapper.insert(userListeningRecord) > 0;
-        if (success) {
-            updateRedisCache(userId, songId, playDuration, songInfo.getSingerId(), songInfo);
-        }
-        return success;
+        return userListeningRecordMapper.insert(userListeningRecord) > 0;
     }
 
     /**
@@ -80,36 +79,33 @@ public class UserListeningRecordServiceImpl extends ServiceImpl<UserListeningRec
      * @return 时长
      */
     @Override
-    public Integer getDailyListeningDuration() {
+    public UserListenTimeVo getDailyListeningDuration() {
         // 获取用户id
         Long userId = SecurityUtils.getUserId();
         LocalDate today = LocalDate.now();
-        String dailyDurationKey = DAILY_DURATION_KEY_PREFIX + userId + ":" + today;
+        String dailyDurationKey = DAILY_LISTENING_TIME_USER_KEY_PREFIX + userId + ":" + today;
         // 从redis中查询今日听歌时长
         String duration = stringRedisTemplate.opsForValue().get(dailyDurationKey);
 
         if (duration != null) {
-            return Integer.parseInt(duration);
+            return new UserListenTimeVo(Integer.parseInt(duration));
         }
         // 如果 Redis 中没有缓存，则从数据库查询
         LambdaQueryWrapper<UserListeningRecord> queryWrapper = new LambdaQueryWrapper<>();
         // 查询play_duration字段
         queryWrapper.select(UserListeningRecord::getPlayDuration)
                 .eq(UserListeningRecord::getUserId, userId)
-                .ge(UserListeningRecord::getCreateTime, today.atStartOfDay()) // ge >=
-                .lt(UserListeningRecord::getCreateTime, today.plusDays(1).atStartOfDay()); // lt <
+                .ge(UserListeningRecord::getCreateTime, today.atStartOfDay()) // ge >=  atStartOfDay：将当前日期转换为当天的起始时刻 (00:00:00)
+                .lt(UserListeningRecord::getCreateTime, today.plusDays(1).atStartOfDay()); // lt <  plusDays(1)：获取明天的日期
         // 获取所有满足条件的playDuration的值
-        List<Object> results = userListeningRecordMapper.selectObjs(queryWrapper);
-        // 转换为流 并对时长求和 得出总时长
-        int totalDuration = results.stream()
-                .mapToInt(obj -> obj != null ? ((Number) obj).intValue() : 0)
-                .sum();
-        // 将结果缓存到 Redis，设置过期时间为到第二天凌晨 0 点的剩余时间
-        long secondsUntilMidnight = TimeConverter.getSecondsUntilNextMidnight();
+        List<UserListeningRecord> list = userListeningRecordMapper.selectList(queryWrapper);
+        int totalPlayDuration = list.stream()
+                .mapToInt(UserListeningRecord::getPlayDuration) // 提取每个对象的 play_duration
+                .sum(); // 计算总和
         // 将结果缓存到 Redis
-        stringRedisTemplate.opsForValue().set(dailyDurationKey, String.valueOf(totalDuration), secondsUntilMidnight, TimeUnit.SECONDS);
+        stringRedisTemplate.opsForValue().set(dailyDurationKey, String.valueOf(totalPlayDuration), DAILY_LISTENING_DURATION_THRESHOLD, TimeUnit.MINUTES);
 
-        return totalDuration;
+        return new UserListenTimeVo(totalPlayDuration);
     }
 
     /**
@@ -205,7 +201,7 @@ public class UserListeningRecordServiceImpl extends ServiceImpl<UserListeningRec
     }
 
     private void updateRedisCache(Long userId, Long songId, Integer playDuration, Long singerId, SongInfo songInfo) {
-        // 获取当前日期
+        /*// 获取当前日期
         LocalDate today = LocalDate.now();
         // 用户今天的听歌时长key
         String dailyDurationKey = DAILY_DURATION_KEY_PREFIX + userId + ":" + today;
@@ -226,6 +222,6 @@ public class UserListeningRecordServiceImpl extends ServiceImpl<UserListeningRec
         // 设置缓存过期时间为第二天0点
         stringRedisTemplate.expire(dailyDurationKey, secondsUntilMidnight, TimeUnit.SECONDS);
         stringRedisTemplate.expire(mostListenedSingersKey, secondsUntilMidnight, TimeUnit.SECONDS);
-        stringRedisTemplate.expire(songRankingKey, secondsUntilMidnight, TimeUnit.SECONDS);
+        stringRedisTemplate.expire(songRankingKey, secondsUntilMidnight, TimeUnit.SECONDS);*/
     }
 }

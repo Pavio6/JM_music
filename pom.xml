@@ -104,7 +104,6 @@
             <artifactId>jackson-datatype-jsr310</artifactId>
             <version>2.14.2</version>
         </dependency>
-
         <!--EasyCaptcha图形验证码-->
         <dependency>
             <groupId>com.github.whvcse</groupId>
@@ -156,11 +155,16 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-websocket</artifactId>
         </dependency>
-        <!-- RabbitMQ 支持 -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-amqp</artifactId>
-            <version>3.1.0</version>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>javacv-platform</artifactId>
+            <version>1.5.9</version>
+        </dependency>
+        <!-- sensitive-word 敏感词过滤工具 -->
+        <dependency>
+            <groupId>com.github.houbb</groupId>
+            <artifactId>sensitive-word</artifactId>
+            <version>0.26.0</version>
         </dependency>
     </dependencies>
     <build>

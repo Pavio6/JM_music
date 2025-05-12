@@ -3,7 +3,7 @@ package com.jlf.music.controller.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.Data;
-
+//^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{8,}$
 @Data
 public class PasswordDTO {
     @NotBlank(message = "旧密码不能为空")

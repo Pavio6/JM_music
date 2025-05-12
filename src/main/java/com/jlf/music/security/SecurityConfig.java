@@ -64,13 +64,14 @@ public class SecurityConfig {
                         // anonymous() 严格限制只有匿名用户可以访问指定路径，已认证用户无法访问
                         // permitAll() 允许所有用户（包括匿名用户和已认证用户）访问指定路径。
                         .requestMatchers("/api/user/login", "/api/user/register").anonymous()
+                        // 允许WebSocket端点访问
+                        .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/common/captcha/get").permitAll()
                         // 管理员专属接口
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         // 用户和管理员共享接口
                         .requestMatchers("/api/user/**", "/common/**").hasAnyRole("ADMIN", "USER")
-                        // 允许WebSocket端点访问 
-                        .requestMatchers("/ws/**").permitAll()
+
                         // 其他所有请求都需要认证
                         .anyRequest().authenticated())
                 // 设置会话创建策略为无状态
@@ -85,4 +86,5 @@ public class SecurityConfig {
         // 构建并返回安全过滤链
         return http.build();
     }
+
 }

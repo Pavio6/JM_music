@@ -1,7 +1,11 @@
 package com.jlf.music.controller.web.user;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.jlf.music.common.PageRequest;
 import com.jlf.music.common.Result;
+import com.jlf.music.controller.vo.MvListVo;
 import com.jlf.music.controller.vo.SongMvDetailVo;
+import com.jlf.music.controller.vo.SongMvVo;
 import com.jlf.music.exception.ServiceException;
 import com.jlf.music.service.SongMvService;
 import jakarta.annotation.Resource;
@@ -33,6 +37,14 @@ public class UserSongMvController {
             throw new ServiceException("不存在该视频");
         }
         return Result.success(songMvService.getMvDetail(mvId));
+    }
+
+    /**
+     * 获取mv分页
+     */
+    @GetMapping("/page")
+    public Result<IPage<SongMvVo>> getMvPage(PageRequest pageRequest) {
+        return Result.success(songMvService.getMvPage(pageRequest));
     }
 
 }

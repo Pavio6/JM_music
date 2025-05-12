@@ -7,6 +7,7 @@ import com.jlf.music.controller.qry.AlbumQry;
 import com.jlf.music.controller.vo.AlbumVo;
 import com.jlf.music.controller.vo.SongBasicInfoVo;
 import com.jlf.music.entity.AlbumInfo;
+import com.jlf.music.entity.TypeInfo;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -35,4 +36,19 @@ public interface AlbumInfoService extends IService<AlbumInfo> {
      * 新增专辑
      */
     Boolean addAlbum(AlbumFormDTO albumFormDTO, MultipartFile albumCoverFile);
+
+    /**
+     * 删除专辑
+     */
+    Boolean deleteAlbum(Long albumId);
+
+    /**
+     * 获取专辑类型
+     */
+    List<TypeInfo> getAlbumType();
+
+    /**
+     * 获取专辑详情
+     */
+    AlbumVo getAlbumDetailByAlbumId(Long albumId);
 }

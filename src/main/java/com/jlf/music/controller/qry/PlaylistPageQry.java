@@ -1,6 +1,7 @@
 package com.jlf.music.controller.qry;
 
 import com.jlf.music.common.PageRequest;
+import com.jlf.music.common.enumerate.TagType;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
@@ -22,5 +23,9 @@ public class PlaylistPageQry extends PageRequest {
      * 歌单状态
      */
     private Integer status;
+    /**
+     * 歌单标签类型
+     */
+    private String tagType;
 
 }

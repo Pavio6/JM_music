@@ -40,6 +40,7 @@ public class AuthenticationTokenFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, @NotNull HttpServletResponse response, @NotNull FilterChain filterChain) throws ServletException, IOException {
         // 获取token
         String token = request.getHeader("token");
+        log.info("token: {}", token);
         if (!StringUtils.hasText(token)) {
             // 放行
             filterChain.doFilter(request, response);

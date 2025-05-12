@@ -21,21 +21,80 @@ import java.util.Date;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SongDetailVo {
-    private Long songId; // 歌曲ID
-    private String songName; // 歌曲名称
-    private LocalTime songDuration; // 歌曲时长
-    private String songLyrics; // 歌词（可选）
-    private LocalDate songReleaseDate; // 发行日期
-    private String songFilePath; // 歌曲文件路径（可选）
-    private String songCover; // 歌曲封面（可选）
-    private Long singerId; // 歌手ID
-    private Long albumId; // 专辑ID
+    /**
+     * 歌曲ID
+     */
+    private Long songId;
+
+    /**
+     * 歌曲名称
+     */
+    private String songName;
+
+    /**
+     * 歌曲时长
+     */
+    private LocalTime songDuration;
+
+    /**
+     * 歌词
+     */
+    private String songLyrics;
+
+    /**
+     * 发行日期
+     */
+    private LocalDate songReleaseDate;
+
+    /**
+     * 歌曲文件路径
+     */
+    private String songFilePath;
+
+    /**
+     * 歌曲封面
+     */
+    private String songCover;
+
+    /**
+     * 歌手ID
+     */
+    private Long singerId;
+
+    /**
+     * 专辑ID
+     */
+    private Long albumId;
+
+    /**
+     * 创建时间
+     */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private Date createTime; // 创建时间
+    private Date createTime;
+
+    /**
+     * 更新时间
+     */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private Date updateTime; // 更新时间
-    private Integer deleteFlag; // 删除标志（0:未删除, 1:已删除）
-    private Double playCount; // 播放次数
-    private String singerName; // 关联歌手名称（可选）
-    private String albumName; // 关联专辑名称（可选）
+    private Date updateTime;
+
+    /**
+     * 删除标志（0:未删除, 1:已删除）
+     */
+    private Integer deleteFlag;
+
+    /**
+     * 播放量
+     */
+    private Double playCount;
+
+    /**
+     * 关联歌手名称
+     */
+    private String singerName;
+
+    /**
+     * 关联专辑名称
+     */
+    private String albumName;
 }

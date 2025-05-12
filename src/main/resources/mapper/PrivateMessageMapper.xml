@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jlf.music.mapper.PrivateMessageMapper">
+    <!-- ====================== 通用结果映射 ====================== -->
+    <resultMap id="BaseResultMap" type="com.jlf.music.entity.PrivateMessage">
+        <id column="message_id" property="messageId" jdbcType="BIGINT" />
+        <result column="sender_id" property="senderId" jdbcType="BIGINT" />
+        <result column="receiver_id" property="receiverId" jdbcType="BIGINT" />
+        <result column="content" property="content" jdbcType="VARCHAR" />
+        <result column="message_type" property="messageType" jdbcType="VARCHAR" />
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
+        <result column="is_read" property="isRead" jdbcType="BIT" />
+        <result column="status" property="status" jdbcType="VARCHAR" />
+    </resultMap>
+
+    <!-- ====================== 方法实现 ====================== -->
+
+    <!-- 获取对话消息（分页） -->
+    <select id="getConversationMessages" resultType="map">
+        SELECT
+            mi.*,
+            s.user_name AS senderName,
+            s.user_avatar AS senderAvatar,
+            r.user_name AS receiverName,
+            r.user_avatar AS receiverAvatar
+        FROM private_message mi
+                 LEFT JOIN sys_user s ON mi.sender_id = s.user_id
+                 LEFT JOIN sys_user r ON mi.receiver_id = r.user_id
+        WHERE
+            (mi.sender_id = #{userId} AND mi.receiver_id = #{otherUserId})
+           OR (mi.sender_id = #{otherUserId} AND mi.receiver_id = #{userId})
+        ORDER BY mi.create_time DESC
+    </select>
+
+    <!-- 获取未读消息 -->
+    <select id="getUnreadMessages" resultMap="BaseResultMap">
+        SELECT * FROM private_message
+        WHERE receiver_id = #{userId}
+          AND is_read = 0
+        ORDER BY create_time
+    </select>
+
+    <!-- 获取私聊用户列表 -->
+    <select id="getPrivateMessageUsers" resultType="com.jlf.music.controller.vo.PrivateMessageUserVo">
+        SELECT
+            ru.user_id AS otherUserId,
+            ru.user_name AS otherUserName,
+            ru.user_avatar AS otherUserAvatar,
+            (SELECT pm.content FROM private_message pm
+             WHERE pm.message_id = (
+                 SELECT MAX(message_id) FROM private_message
+                 WHERE (sender_id = #{senderId} AND receiver_id = ru.user_id)
+                    OR (sender_id = ru.user_id AND receiver_id = #{senderId})
+             )) AS lastMessageContent,
+            (SELECT MAX(create_time) FROM private_message
+             WHERE (sender_id = #{senderId} AND receiver_id = ru.user_id)
+                OR (sender_id = ru.user_id AND receiver_id = #{senderId})
+            ) AS lastMessageTime,
+            (SELECT COUNT(*) FROM private_message
+             WHERE receiver_id = #{senderId}
+               AND sender_id = ru.user_id
+               AND is_read = 0) AS unreadCount
+        FROM sys_user ru
+        WHERE ru.delete_flag = 0
+          AND EXISTS (
+            SELECT 1 FROM private_message pm
+            WHERE (pm.sender_id = #{senderId} AND pm.receiver_id = ru.user_id)
+               OR (pm.sender_id = ru.user_id AND pm.receiver_id = #{senderId})
+        )
+        GROUP BY ru.user_id
+        ORDER BY lastMessageTime DESC
+    </select>
+
+
+
+    <!-- 获取私聊历史记录（时间正序） -->
+    <select id="getPrivateMessages" resultType="com.jlf.music.controller.vo.PrivateMessageVo">
+        SELECT
+            mi.message_id,
+            mi.sender_id,
+            mi.receiver_id,
+            mi.content,
+            mi.create_time,
+            mi.is_read
+        FROM private_message mi
+        WHERE
+            mi.sender_id = #{senderId}
+          AND mi.receiver_id = #{receiverId}
+        UNION ALL
+        SELECT
+            mi.message_id,
+            mi.sender_id,
+            mi.receiver_id,
+            mi.content,
+            mi.create_time,
+            mi.is_read
+        FROM private_message mi
+        WHERE
+            mi.sender_id = #{receiverId}
+          AND mi.receiver_id = #{senderId}
+        ORDER BY create_time ASC
+    </select>
+</mapper>

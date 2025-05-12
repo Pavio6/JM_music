@@ -12,10 +12,7 @@ import java.util.List;
 @Data
 @Accessors(chain = true)
 public class QueueStateVo {
-    /**
-     * 播放模式
-     */
-    private PlayModeType playMode;
+
     /**
      * 当前播放的索引
      */

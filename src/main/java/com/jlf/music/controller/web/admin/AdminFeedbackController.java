@@ -2,14 +2,14 @@ package com.jlf.music.controller.web.admin;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.jlf.music.common.Result;
+import com.jlf.music.common.enumerate.FeedbackProcessingStatus;
+import com.jlf.music.controller.dto.UserFeedbackReplyDTO;
 import com.jlf.music.controller.qry.UserFeedbackQry;
 import com.jlf.music.controller.vo.FeedbackInfoVo;
 import com.jlf.music.controller.vo.FeedbackStatisticsVo;
 import com.jlf.music.service.UserFeedbackService;
 import jakarta.annotation.Resource;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * @Description 管理员处理反馈controller
@@ -37,5 +37,22 @@ public class AdminFeedbackController {
     @GetMapping("/statistics")
     public Result<FeedbackStatisticsVo> getFeedbackStatistics() {
         return Result.success(userFeedbackService.getFeedbackStatistics());
+    }
+
+    /**
+     * 获取反馈信息详情 - 管理员端
+     */
+    @GetMapping("/{feedbackId}")
+    public Result<FeedbackInfoVo> getAdminFeedbackDetail(@PathVariable("feedbackId") Long feedbackId) {
+        return Result.success(userFeedbackService.getAdminFeedbackDetailById(feedbackId));
+    }
+
+    /**
+     * 更改反馈状态和回复信息
+     */
+    @PostMapping("/reply/{feedbackId}")
+    public Result<Boolean> updateFeedbackStatusAndReply(@PathVariable Long feedbackId,
+                                                        @RequestBody UserFeedbackReplyDTO dto) {
+        return Result.success(userFeedbackService.updateFeedbackStatusAndReply(feedbackId, dto));
     }
 }

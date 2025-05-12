@@ -30,10 +30,10 @@ public class UserSearchController {
     private AlbumInfoMapper albumInfoMapper;
 
     /**
-     * 搜索
+     * 模糊搜索歌曲/歌手/专辑
      *
      * @param keyword 关键词
-     * @param limit 条数
+     * @param limit   条数
      * @return SearchResultVo
      */
     @GetMapping

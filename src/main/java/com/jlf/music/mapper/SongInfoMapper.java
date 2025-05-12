@@ -11,6 +11,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -32,7 +33,6 @@ public interface SongInfoMapper extends BaseMapper<SongInfo> {
      * @return 歌曲列表
      */
     List<SongBasicInfoVo> getSongsByAlbumId(@Param("albumId") Long albumId);
-
 
 
     /**
@@ -73,7 +73,7 @@ public interface SongInfoMapper extends BaseMapper<SongInfo> {
     /**
      * 获取新歌榜
      */
-    List<SongBasicInfoVo> selectNewSongs(@Param("startTime") LocalDateTime startTime, @Param("limit") int limit);
+    List<SongBasicInfoVo> selectNewSongs(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
 
     /**
      * 获取飙升榜
@@ -83,7 +83,7 @@ public interface SongInfoMapper extends BaseMapper<SongInfo> {
     List<SongBasicInfoVo> selectRisingSongs();
 
     /**
-     * 根据歌手id获取歌曲列表
+     * 根据歌手id获取热门歌曲列表
      */
     List<SongBasicInfoVo> selectTopSongsBySingerId(@Param("singerId") Long singerId);
 }

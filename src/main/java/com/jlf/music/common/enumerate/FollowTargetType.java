@@ -7,8 +7,15 @@ import lombok.Getter;
  */
 @Getter
 public enum FollowTargetType {
+    /**
+     * 用户
+     */
     USER(0),
+    /**
+     * 歌手
+     */
     SINGER(1);
+
     private final Integer value;
 
     FollowTargetType(Integer value) {

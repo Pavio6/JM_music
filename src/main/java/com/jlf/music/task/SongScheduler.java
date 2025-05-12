@@ -1,21 +1,19 @@
 package com.jlf.music.task;
 
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.jlf.music.entity.SongInfo;
 import com.jlf.music.entity.SongPlayDaily;
+import com.jlf.music.mapper.SongInfoMapper;
 import com.jlf.music.mapper.SongPlayDailyMapper;
-import com.jlf.music.service.SongInfoService;
 import jakarta.annotation.Resource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Set;
 
-import static com.jlf.music.common.constant.RedisConstant.SONG_DAILY_KEY_PREFIX;
+import static com.jlf.music.common.constant.MusicConstant.SONG_DAILY_PLAY_COUNT_KEY_PREFIX;
 
 /**
  * 歌曲 scheduler
@@ -25,15 +23,14 @@ public class SongScheduler {
     @Resource
     private StringRedisTemplate stringRedisTemplate;
     @Resource
-    private SongInfoService songInfoService;
-    @Resource
     private SongPlayDailyMapper songPlayDailyMapper;
-
+    @Resource
+    private SongInfoMapper songInfoMapper;
     /**
      * 歌曲热歌榜 按播放量
      * 每天凌晨1点执行衰减计算
      */
-    @Scheduled(cron = "0 0 1 * * ?")
+    /*@Scheduled(cron = "0 0 1 * * ?")
     public void dailyDecayTask() {
         // 获取昨日日期
         LocalDate yesterday = LocalDate.now().minusDays(1);
@@ -87,6 +84,37 @@ public class SongScheduler {
         songInfoService.updateBatchById(updateList);
         // 4. 删除Redis记录
         stringRedisTemplate.delete(dailyHashKey);
+    }*/
+
+    /**
+     * 每日零点将redis中昨天的歌曲每日播放量同步到数据库中
+     */
+    @Scheduled(cron = "0 2 0 * * ?")
+    public void updateSongDailyPlayCount() {
+        // 获取所有歌单的播放量
+        Set<String> keys = stringRedisTemplate.keys(SONG_DAILY_PLAY_COUNT_KEY_PREFIX + "*");
+        if (keys != null && !keys.isEmpty()) {
+            for (String key : keys) {
+                // 获取歌曲ID
+                // 将字符串中的PLAYLIST_PLAY_COUNT_KEY_PREFIX 替换为 "" -> 获取歌曲id
+                Long songId = Long.parseLong(key.replace(SONG_DAILY_PLAY_COUNT_KEY_PREFIX, ""));
+                // 获取播放量
+                String songDailyPlayCountStr = stringRedisTemplate.opsForValue().get(key);
+                // 转为long类型
+                long playCount = songDailyPlayCountStr != null ? Long.parseLong(songDailyPlayCountStr) : 0;
+                // 添加数据到歌曲每日播放量表中
+                songPlayDailyMapper.insert(new SongPlayDaily()
+                        .setPlayCount(playCount)
+                        .setSongId(songId)
+                        .setDate(LocalDate.now().minusDays(1)));
+                // 更新歌曲主表的播放量
+                songInfoMapper.update(new LambdaUpdateWrapper<SongInfo>()
+                        .eq(SongInfo::getSongId, songId)
+                        .setSql("play_count = play_count + " + playCount));
+                // 清空 Redis 中的播放量
+                stringRedisTemplate.delete(key);
+            }
+        }
     }
 
 }

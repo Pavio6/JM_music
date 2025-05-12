@@ -10,9 +10,5 @@ import java.util.List;
 
 @Mapper
 public interface PlaylistTagsMapper extends BaseMapper<PlaylistTags> {
-    /**
-     * 批量插入歌单-标签list
-     * @param playlistTags 歌单-标签list
-     */
-    void insertBatch(@Param("playlistTags") List<PlaylistTags> playlistTags);
+
 }

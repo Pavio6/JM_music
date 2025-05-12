@@ -62,9 +62,10 @@
                COUNT(s.song_id) AS count
         FROM album_info a
             LEFT JOIN song_info s
-        ON a.album_id = s.album_id
+        ON a.album_id = s.album_id and s.delete_flag = 0
             LEFT JOIN type_info t
-            ON a.type_id = t.type_id
+            ON a.type_id = t.type_id and t.delete_flag = 0
+        where a.delete_flag = 0
         GROUP BY a.type_id, t.type_name
     </select>
 </mapper>

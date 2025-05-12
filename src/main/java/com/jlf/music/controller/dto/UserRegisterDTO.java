@@ -3,7 +3,6 @@ package com.jlf.music.controller.dto;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 import lombok.experimental.Accessors;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 

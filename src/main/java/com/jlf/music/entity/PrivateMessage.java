@@ -25,7 +25,7 @@ public class PrivateMessage {
     /**
      * 消息ID
      */
-    @TableId(value = "id", type = IdType.AUTO)
+    @TableId(value = "message_id", type = IdType.AUTO)
     private Long messageId;
 
     /**

@@ -1,12 +1,14 @@
 package com.jlf.music.controller.web.user;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.jlf.music.common.PageRequest;
 import com.jlf.music.common.Result;
 import com.jlf.music.common.constant.RedisConstant;
 import com.jlf.music.controller.dto.*;
-import com.jlf.music.controller.vo.UserRegisterVo;
-import com.jlf.music.controller.vo.UserDetailInfoVo;
-import com.jlf.music.controller.vo.UserPersonalInfoVo;
-import com.jlf.music.controller.vo.UserLoginVo;
+import com.jlf.music.controller.qry.FollowListQry;
+import com.jlf.music.controller.qry.UserQry;
+import com.jlf.music.controller.vo.*;
+import com.jlf.music.entity.SysUser;
 import com.jlf.music.exception.ServiceException;
 import com.jlf.music.service.SysUserService;
 import jakarta.annotation.Resource;
@@ -66,6 +68,7 @@ public class UserController {
         }
         // 清除Security上下文中的认证信息
         SecurityContextHolder.clearContext();
+        log.info("用户退出登录成功");
         return Result.success(SUCCESS_CODE, "退出成功");
     }
 
@@ -77,7 +80,7 @@ public class UserController {
                                       @RequestParam(value = "userEmail", required = false) String userEmail,
                                       @RequestParam(value = "userBio", required = false) String userBio,
                                       @RequestParam(value = "userBirth", required = false) LocalDate userBirth,
-                                      @RequestParam(value = "userSec", required = false) Integer userSex,
+                                      @RequestParam(value = "userSex", required = false) Integer userSex,
                                       @RequestParam(value = "userAvatar", required = false) MultipartFile userAvatar) {
 
         return Result.success(sysUserService.updateUser(userName, userEmail, userBio, userBirth, userSex, userAvatar));
@@ -109,4 +112,27 @@ public class UserController {
         return Result.success(sysUserService.changePassword(passwordDTO, bindingResult));
     }
 
+    /**
+     * 获取用户列表
+     */
+    @GetMapping("/list")
+    public Result<IPage<SysUser>> getUsers(UserQry userQry) {
+        return Result.success(sysUserService.getUserList(userQry));
+    }
+
+    /**
+     * 获取用户个人的关注列表
+     */
+    @GetMapping("/mine/follow/list")
+    public Result<IPage<SimpleItemVo>> getMineFollowList(FollowListQry followListQry) {
+        return Result.success(sysUserService.getFollowList(followListQry));
+    }
+
+    /**
+     * 获取用户个人的粉丝列表
+     */
+    @GetMapping("/mine/fan/list")
+    public Result<IPage<SimpleItemVo>> getMineFanList(PageRequest pageRequest) {
+        return Result.success(sysUserService.getFanList(pageRequest));
+    }
 }

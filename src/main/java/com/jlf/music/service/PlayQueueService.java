@@ -36,15 +36,7 @@ public interface PlayQueueService extends IService<PlayQueue> {
      * @return 播放队列数据
      */
     QueueStateVo getCurrentQueue();
-    /**
-     * 切换播放队列类型
-     * 完整队列切换操作 清空当前队列并创建新的队列
-     * @param queueType 播放队列类型
-     * @param sourceId 数据源id 歌单/专辑id
-     * @param songId 定位播放的起始歌曲
-     * @return Boolean
-     */
-    Boolean switchPlayQueue(QueueType queueType, Long sourceId, Long songId);
+
     /**
      * 从播放队列中批量移除歌曲
      * @param songIds 要移除的歌曲 ID 列表
@@ -57,5 +49,20 @@ public interface PlayQueueService extends IService<PlayQueue> {
      * @return Boolean
      */
     Boolean clearAll();
+    /**
+     * 切换整个播放队列中的歌曲
+     * 完整队列切换操作 清空当前队列并创建新的队列
+     *
+     * @param songIds 歌曲列表
+     * @return Boolean
+     */
+    Boolean switchSongsInPlayQueue(List<Long> songIds);
 
+    /**
+     * 修改用户正在播放的队列的歌曲
+     *
+     * @param songId 歌曲id
+     * @return boolean
+     */
+    Boolean updateIsPlayingSong(Long songId);
 }

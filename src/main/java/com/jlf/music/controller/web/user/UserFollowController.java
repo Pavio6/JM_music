@@ -1,8 +1,12 @@
 package com.jlf.music.controller.web.user;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.jlf.music.common.PageRequest;
 import com.jlf.music.common.Result;
 import com.jlf.music.common.enumerate.FollowTargetType;
+import com.jlf.music.controller.qry.FollowListQry;
 import com.jlf.music.controller.vo.FollowStatsVo;
+import com.jlf.music.controller.vo.SimpleItemVo;
 import com.jlf.music.controller.vo.SingerFollowsCountVo;
 import com.jlf.music.service.UserFollowService;
 import jakarta.annotation.Resource;
@@ -53,5 +57,21 @@ public class UserFollowController {
     @GetMapping("/singer/stats")
     public Result<SingerFollowsCountVo> getSingerFollowsCount(@RequestParam Long singerId) {
         return Result.success(userFollowService.getSingerFollowsCount(singerId));
+    }
+
+    /**
+     * 获取用户的关注列表
+     */
+    @GetMapping("/list/{userId}")
+    public Result<IPage<SimpleItemVo>> getFollowListByUserId(FollowListQry followListQry, @PathVariable Long userId) {
+        return Result.success(userFollowService.getFollowListByUserId(followListQry, userId));
+    }
+
+    /**
+     * 获取用户的粉丝列表
+     */
+    @GetMapping("/fan/list/{userId}")
+    public Result<IPage<SimpleItemVo>> getFanListByUserId(PageRequest pageRequest, @PathVariable Long userId) {
+        return Result.success(userFollowService.getFanListByUserId(pageRequest, userId));
     }
 }

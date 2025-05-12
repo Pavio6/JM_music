@@ -26,4 +26,5 @@ public class SongMvDetailVo {
     private String mvFilePath720p;
     @TableField("mv_file_path_1080p")
     private String mvFilePath1080p;
+    private Integer playCount;
 }

@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
 
 import java.util.Date;
 
@@ -19,7 +20,7 @@ import java.util.Date;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@Accessors(chain = true)
 @TableName("user_feedback")
 public class UserFeedback {
     /**
@@ -33,6 +34,11 @@ public class UserFeedback {
      */
     @TableField("user_id")
     private Long userId;
+    /**
+     * 用户名
+     */
+    @TableField("user_name")
+    private String userName;
 
     /**
      * 反馈类型

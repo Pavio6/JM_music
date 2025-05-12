@@ -87,4 +87,11 @@ public class AdminSingerInfoController {
                                         @RequestPart(value = "singerAvatar", required = false) MultipartFile avatarFile) {
         return Result.success(singerInfoService.addSinger(singerFormDTO, avatarFile));
     }
+    /**
+     * 删除歌手
+     */
+    @DeleteMapping("/{singerId}")
+    public Result<Boolean> deleteSinger(@PathVariable Long singerId) {
+        return Result.success(singerInfoService.deleteSinger(singerId));
+    }
 }

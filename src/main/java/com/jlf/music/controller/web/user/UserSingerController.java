@@ -15,6 +15,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/user/singer")
 public class UserSingerController {
+
     @Resource
     private SingerInfoService singerInfoService;
 
@@ -32,6 +33,7 @@ public class UserSingerController {
 
     /**
      * 根据歌手id获取热门歌曲列表信息
+     * <p>
      * 根据歌曲播放量排序
      *
      * @param singerId 歌手id
@@ -42,7 +44,7 @@ public class UserSingerController {
     }
 
     /**
-     * 获取歌手详细信息
+     * 根据歌手id获取歌手详细信息
      *
      * @param singerId 歌手id
      */

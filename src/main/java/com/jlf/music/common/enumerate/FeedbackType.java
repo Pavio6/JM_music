@@ -7,7 +7,9 @@ package com.jlf.music.common.enumerate;
  * @Version 1.0
  */
 public enum FeedbackType {
-
+    /**
+     * 程序错误 - bug
+     */
     BUG,
     /**
      * 功能请求

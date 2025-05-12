@@ -35,27 +35,13 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     @Resource
     private SongPlayDailyMapper songPlayDailyMapper;
 
-    /**
-     * 设置值到DashboardSummaryVo
-     *
-     * @param map redis查询的结果
-     * @return DashboardSummaryVo
-     */
-    private DashboardSummaryVo convertMapToStatistics(Map<Object, Object> map) {
-        DashboardSummaryVo statistics = new DashboardSummaryVo();
-        statistics.setTotalSongs(Long.parseLong(map.getOrDefault(SONG_COUNT_KEY, "0").toString()));
-        statistics.setTotalSingers(Long.parseLong(map.getOrDefault(SINGER_COUNT_KEY, "0").toString()));
-        statistics.setTotalAlbums(Long.parseLong(map.getOrDefault(ALBUM_COUNT_KEY, "0").toString()));
-        statistics.setTotalUsers(Long.parseLong(map.getOrDefault(USER_COUNT_KEY, "0").toString()));
-        return statistics;
-    }
+
 
     /**
      * 查询和缓存统计
      */
     @Override
-    @Transactional
-    public DashboardSummaryVo queryAndCacheStatistics() {
+    public DashboardSummaryVo getDashboardSummary() {
         DashboardSummaryVo statistics = new DashboardSummaryVo();
         // 从数据库查询数据
         Long songCount = songInfoMapper.selectCount(null);
@@ -67,45 +53,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         statistics.setTotalSingers(singerCount);
         statistics.setTotalAlbums(albumCount);
         statistics.setTotalUsers(userCount);
-        // 缓存到Redis
-        try {
-            Map<String, String> cacheMap = new HashMap<>();
-            cacheMap.put(SONG_COUNT_KEY, String.valueOf(songCount));
-            cacheMap.put(SINGER_COUNT_KEY, String.valueOf(singerCount));
-            cacheMap.put(ALBUM_COUNT_KEY, String.valueOf(albumCount));
-            cacheMap.put(USER_COUNT_KEY, String.valueOf(userCount));
-            stringRedisTemplate.opsForHash().putAll(STATISTICS_KEY, cacheMap);
-            // 设置过期时间 - 180分钟
-            stringRedisTemplate.expire(STATISTICS_KEY, CACHE_TIME, TimeUnit.MINUTES);
-        } catch (Exception e) {
-            log.error("Cache statistics failed", e);
-        }
         return statistics;
     }
 
-    /**
-     * 获取统计数据
-     *
-     * @return StatisticsVO 歌曲 歌手 专辑 用户 的总数
-     */
-    @Override
-    public DashboardSummaryVo getDashboardSummary() {
-        // 当前类的代理对象
-        AdminDashboardService proxy = (AdminDashboardService) AopContext.currentProxy();
-        // 尝试从Redis获取数据
-        Map<Object, Object> statisticsMap = stringRedisTemplate.opsForHash().entries(STATISTICS_KEY);
-
-        DashboardSummaryVo statistics;
-        if (!statisticsMap.isEmpty()) {
-            // Redis中有数据，直接返回
-            statistics = convertMapToStatistics(statisticsMap);
-        } else {
-            // Redis中没有数据，从数据库查询并缓存
-            statistics = proxy.queryAndCacheStatistics();
-        }
-
-        return statistics;
-    }
 
     /**
      * 获取歌曲类型分布统计

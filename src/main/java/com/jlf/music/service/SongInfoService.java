@@ -10,7 +10,6 @@ import com.jlf.music.controller.vo.SongBasicInfoVo;
 import com.jlf.music.entity.SongInfo;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -62,17 +61,37 @@ public interface SongInfoService extends IService<SongInfo> {
      * @return 歌曲列表
      */
     List<SongBasicInfoVo> getRisingSongs();
+
     /**
      * 更新歌曲
      */
     Boolean updateSong(Long songId, MultipartFile songLyricsFile, MultipartFile songFile, MultipartFile songCoverFile, SongFormDTO songFormDTO);
+
     /**
      * 获取歌曲详情
+     *
      * @param songId 歌曲id
      */
     SongDetailVo getSongDetail(Long songId);
+
     /**
      * 新增歌曲
      */
-    Boolean addSong(SongFormDTO songFormDTO, MultipartFile songLyricsFile, MultipartFile songFile, MultipartFile songCoverFile);
+    Boolean addSong(SongFormDTO songFormDTO, MultipartFile songLyricsFile, MultipartFile songFile, MultipartFile songCoverFile, MultipartFile mvFilePath480p, MultipartFile mvFilePath720p, MultipartFile mvFilePath1080p);
+
+    /**
+     * 根据id增加播放量
+     *
+     * @param targetId   歌曲/歌单id
+     * @param targetType 歌曲/歌单
+     * @return Boolean
+     */
+    Boolean incrementPlayCountByTargetId(Long targetId, String targetType);
+
+    /**
+     * 删除歌曲
+     */
+    Boolean deleteSongById(Long songId);
+
+    void deleteSongInfo(Long songId);
 }

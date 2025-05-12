@@ -18,9 +18,32 @@ import java.time.LocalTime;
 @AllArgsConstructor
 @NoArgsConstructor
 public class SongFormDTO {
+    /**
+     * 歌曲名
+     */
     private String songName;
+    /**
+     * 歌曲时长
+     */
     private LocalTime songDuration;
+    /**
+     * 歌曲发行日期
+     */
     private LocalDate songReleaseDate;
+    /**
+     * 歌手id
+     */
     private Long singerId;
+    /**
+     * 专辑id
+     */
     private Long albumId;
+    /**
+     * 歌曲mv发行日期
+     */
+    private LocalDate mvReleaseDate;
+    /**
+     * 歌曲mv简介
+     */
+    private String mvBio;
 }

@@ -12,10 +12,4 @@ public interface UserPrivacyService extends IService<UserPrivacy> {
      */
     Boolean updatePrivacySettings(UserPrivacyDTO privacyDTO);
 
-    /**
-     * 获取用户隐私设置
-     * @param id 用户ID
-     * @return dto
-     */
-    UserPrivacyDTO getPrivacySettings(Long id);
 }

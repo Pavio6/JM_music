@@ -1,5 +1,6 @@
 package com.jlf.music.service.impl;
 
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -8,16 +9,19 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.jlf.music.common.PageRequest;
 import com.jlf.music.common.constant.Constant;
-import com.jlf.music.common.enumerate.MessagePermissionType;
-import com.jlf.music.common.enumerate.VisibilityType;
-import com.jlf.music.common.enumerate.UploadFileType;
+import com.jlf.music.common.enumerate.*;
 import com.jlf.music.controller.dto.*;
+import com.jlf.music.controller.qry.FollowListQry;
 import com.jlf.music.controller.qry.UserQry;
 import com.jlf.music.controller.vo.*;
+import com.jlf.music.entity.SingerInfo;
 import com.jlf.music.entity.SysUser;
+import com.jlf.music.entity.UserFollow;
 import com.jlf.music.entity.UserPrivacy;
 import com.jlf.music.exception.ServiceException;
+import com.jlf.music.mapper.SingerInfoMapper;
 import com.jlf.music.mapper.SysUserMapper;
+import com.jlf.music.mapper.UserFollowMapper;
 import com.jlf.music.mapper.UserPrivacyMapper;
 import com.jlf.music.security.LoginUser;
 import com.jlf.music.service.*;
@@ -31,7 +35,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.BindingResult;
@@ -39,10 +42,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -71,6 +71,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     private BCryptPasswordEncoder passwordEncoder;
     @Resource
     private PlayQueueService playQueueService;
+    @Resource
+    private UserFollowMapper userFollowMapper;
+    @Resource
+    private SingerInfoMapper singerInfoMapper;
 
     /**
      * 用户注册
@@ -99,15 +103,20 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                 .eq(SysUser::getUserEmail, registerDTO.getUserEmail())) > 0) {
             throw new ServiceException("邮箱已被注册");
         }
+        String userAvatar;
         // 上传用户头像到minio
-        String userAvatar = userAvatarFile != null ? fileService.uploadImageFile(userAvatarFile, UploadFileType.USER_AVATAR) : null;
+        if (userAvatarFile == null || userAvatarFile.isEmpty()) {
+            userAvatar = null;
+        } else {
+            userAvatar = fileService.uploadImageFile(userAvatarFile, UploadFileType.USER_AVATAR);
+        }
         SysUser sysUser = CopyUtils.classCopy(registerDTO, SysUser.class);
-        // 密码加密
-        // 使用 PasswordEncoder 加密密码
+        // 密码加密 - 使用 PasswordEncoder 加密密码
         String encodedPassword = passwordEncoder.encode(registerDTO.getUserPass());
         sysUser.setUserPass(encodedPassword)
                 .setUserAvatar(userAvatar)
-                .setType(Constant.INTEGER_ZERO);
+                .setUserStatus(UserStatus.ENABLE.getCode()) // 用户状态 - 可用
+                .setType(Constant.INTEGER_ZERO); // 类型为用户
         // 插入用户信息
         if (sysUserMapper.insert(sysUser) <= 0) {
             throw new ServiceException("注册失败");
@@ -147,14 +156,13 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new ServiceException("验证码过期");
         }
         if (!userLoginDTO.getCaptchaCode().toLowerCase().equals(code)) {
+            // 验证码错误 更换成新的验证码
+            stringRedisTemplate.delete(userLoginDTO.getCaptchaKey());
             throw new ServiceException("验证码错误");
         }
         // 用户认证
-        log.info("开始认证");
         UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(userLoginDTO.getUserName(), userLoginDTO.getUserPass());
         Authentication authenticate = authenticationManager.authenticate(authenticationToken);
-        log.info("authenticate: {}", authenticate);
-        log.info("认证成功");
         // 生成 Token
         String token = UUID.randomUUID().toString();
         LoginUser loginUser = (LoginUser) authenticate.getPrincipal();
@@ -179,7 +187,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         // 封装返回结果
         UserLoginVo userLoginVo = new UserLoginVo();
         userLoginVo.setToken(token);
-        userLoginVo.setUserRegisterVo(new UserRegisterVo(user.getUserId(), user.getUserName(), user.getUserAvatar()));
+        userLoginVo.setUser(new UserRegisterVo(user.getUserId(), user.getUserName(), user.getUserAvatar()));
         return userLoginVo;
     }
 
@@ -203,18 +211,12 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (userName != null) {
             if (userName.length() < 3 || userName.length() > 20) {
                 throw new ServiceException("用户名长度需为3-20个字符");
-
             } else {
-                String namePattern = "^(?=.*[A-Za-z])(?=.*[\\d@$!%*#?&])[A-Za-z\\d@$!%*#?&]{3,}$";
-                if (!Pattern.matches(namePattern, userName)) {
-                    throw new ServiceException("用户名格式不符合要求");
-                } else {
-                    updateWrapper.set(SysUser::getUserName, userName);
-                }
+                updateWrapper.set(SysUser::getUserName, userName);
             }
         }
         // 验证并设置用户简介
-        if (userBio != null) {
+        if (userBio != null && !userBio.isEmpty()) {
             if (userBio.length() > 500) {
                 throw new ServiceException("简介最多500字");
             } else {
@@ -231,18 +233,24 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
 
         // 验证并设置邮箱
-        if (userEmail != null) {
+        if (userEmail != null && !userEmail.isEmpty()) {
             String emailPattern = "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$";
             if (!Pattern.matches(emailPattern, userEmail)) {
                 throw new ServiceException("邮箱格式不正确");
-            } else {
-                updateWrapper.set(SysUser::getUserEmail, userEmail);
             }
+            // 判断新邮箱是否已经被其他用户注册
+            if (sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>()
+                    .eq(SysUser::getUserEmail, userEmail)) != null) {
+                throw new ServiceException("邮箱已被注册");
+            }
+            // 设置更新条件
+            updateWrapper.set(SysUser::getUserEmail, userEmail);
+
         }
 
         // 验证并设置性别
         if (userSex != null) {
-            if (userSex < 0 || userSex > 1) {
+            if (userSex < 0 || userSex > 2) {
                 throw new ServiceException("性别参数不合法");
             } else {
                 updateWrapper.set(SysUser::getUserSex, userSex);
@@ -303,14 +311,12 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
         Long userId = SecurityUtils.getUserId();
         SysUser sysUser = sysUserMapper.selectById(userId);
-        if (sysUser == null) {
-            throw new ServiceException("用户不存在");
-        }
         if (!passwordEncoder.matches(passwordDTO.getOldPassword(), sysUser.getUserPass())) {
             throw new ServiceException("旧密码不正确");
         }
         // 使用 PasswordEncoder 加密新密码
         String encodedNewPassword = passwordEncoder.encode(passwordDTO.getNewPassword());
+        log.info("新密码: {}", encodedNewPassword);
         sysUser.setUserPass(encodedNewPassword);
         return sysUserMapper.updateById(sysUser) > 0;
     }
@@ -388,6 +394,88 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             admin.setUserStatus(userFormDTO.getUserStatus());
         }
         return sysUserMapper.updateById(admin) > 0;
+    }
+
+    /**
+     * 获取用户个人的关注列表
+     */
+    @Override
+    public IPage<SimpleItemVo> getFollowList(FollowListQry followListQry) {
+        Integer value;
+        try {
+            FollowTargetType followTargetType = FollowTargetType.valueOf(followListQry.getType());
+            value = followTargetType.getValue();
+        } catch (Exception e) {
+            throw new ServiceException("不合法的枚举类");
+        }
+        Long userId = SecurityUtils.getUserId();
+        Page<UserFollow> page = new Page<>(followListQry.getPageNum(), followListQry.getPageSize());
+        LambdaQueryWrapper<UserFollow> wrapper = new LambdaQueryWrapper<UserFollow>()
+                .eq(UserFollow::getFollowType, value)
+                .eq(UserFollow::getFollowerId, userId)
+                .orderByDesc(UserFollow::getFollowTime);
+        page = userFollowMapper.selectPage(page, wrapper);
+        List<Long> followedList = page.getRecords().stream().map(UserFollow::getFollowedId).toList();
+        if (CollUtil.isEmpty(followedList)) {
+            return null;
+        }
+        List<SimpleItemVo> list = new ArrayList<>();
+        // 如果关注列表查询的是用户
+        if (FollowTargetType.USER.getValue().equals(value)) {
+            List<SysUser> sysUsers = sysUserMapper.selectBatchIds(followedList);
+            list = sysUsers.stream()
+                    .map(user -> new SimpleItemVo()
+                            .setId(user.getUserId())
+                            .setName(user.getUserName())
+                            .setCover(user.getUserAvatar()))
+                    .toList();
+        } else if (FollowTargetType.SINGER.getValue().equals(value)) {
+            List<SingerInfo> singerInfos = singerInfoMapper.selectBatchIds(followedList);
+            list = singerInfos.stream()
+                    .map(singer -> new SimpleItemVo()
+                            .setId(singer.getSingerId())
+                            .setName(singer.getSingerName())
+                            .setCover(singer.getSingerAvatar()))
+                    .toList();
+        }
+        // 返回结果
+        return new Page<SimpleItemVo>()
+                .setCurrent(page.getCurrent())
+                .setPages(page.getPages())
+                .setTotal(page.getTotal())
+                .setSize(page.getSize())
+                .setRecords(list);
+    }
+
+    /**
+     * 获取用户个人的粉丝列表
+     */
+    @Override
+    public IPage<SimpleItemVo> getFanList(PageRequest pageRequest) {
+        Long userId = SecurityUtils.getUserId();
+        Page<UserFollow> page = new Page<>(pageRequest.getPageNum(), pageRequest.getPageSize());
+        LambdaQueryWrapper<UserFollow> wrapper = new LambdaQueryWrapper<UserFollow>()
+                .eq(UserFollow::getFollowedId, userId)
+                .eq(UserFollow::getFollowType, FollowTargetType.USER.getValue())
+                .orderByDesc(UserFollow::getFollowTime);
+        page = userFollowMapper.selectPage(page, wrapper);
+        List<Long> followerId = page.getRecords().stream().map(UserFollow::getFollowerId).toList();
+        if (CollUtil.isEmpty(followerId)) {
+            return null;
+        }
+        List<SysUser> sysUsers = sysUserMapper.selectBatchIds(followerId);
+        List<SimpleItemVo> list = sysUsers.stream()
+                .map(user -> new SimpleItemVo()
+                        .setId(user.getUserId())
+                        .setName(user.getUserName())
+                        .setCover(user.getUserAvatar()))
+                .toList();
+        return new Page<SimpleItemVo>()
+                .setCurrent(page.getCurrent())
+                .setPages(page.getPages())
+                .setTotal(page.getTotal())
+                .setSize(page.getSize())
+                .setRecords(list);
     }
 
 

@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Set;
 
-import static com.jlf.music.common.constant.PlaylistConstant.PLAYLIST_PLAY_COUNT_KEY_PREFIX;
+import static com.jlf.music.common.constant.MusicConstant.PLAYLIST_PLAY_COUNT_KEY_PREFIX;
 
 /**
  * 歌单 Scheduler
@@ -25,9 +25,9 @@ public class PlaylistScheduler {
     private PlaylistInfoService playlistInfoService;
 
     /**
-     * 每天0点更新数据库中歌单的播放量
+     * 每天零点取出redis中歌单播放量 并同步更新到数据库中
      */
-    @Scheduled(cron = "0 0 0 * * ?")
+    @Scheduled(cron = "0 2 0 * * ?")
     public void updatePlaylistPlayCount() {
         // 获取所有歌单的播放量
         Set<String> keys = stringRedisTemplate.keys(PLAYLIST_PLAY_COUNT_KEY_PREFIX + "*");

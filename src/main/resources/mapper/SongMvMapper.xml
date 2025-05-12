@@ -3,16 +3,18 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.jlf.music.mapper.SongMvMapper">
+    <!--  根据mvId获取mv详情  -->
     <select id="selectMvDetailById" resultType="com.jlf.music.controller.vo.SongMvDetailVo">
         SELECT sm.mv_id              AS mvId,
                sm.mv_bio             AS mvBio,
                si.singer_id          AS singerId,
                sin.singer_name       AS singerName,
-               si.song_name          AS songName,
+               sm.song_name          AS songName,
                sm.mv_release_date    AS mvReleaseDate,
                sm.mv_file_path_480p  AS mvFilePath480p,
                sm.mv_file_path_720p  AS mvFilePath720p,
-               sm.mv_file_path_1080p AS mvFilePath1080p
+               sm.mv_file_path_1080p AS mvFilePath1080p,
+               sm.play_count         AS playCount
         FROM song_mv sm
                  INNER JOIN
              song_info si ON sm.song_id = si.song_id AND si.delete_flag = 0
@@ -21,5 +23,50 @@
         WHERE sm.mv_id = #{mvId}
           AND sm.delete_flag = 0
 
+    </select>
+    <select id="selectMvList" resultType="com.jlf.music.controller.vo.MvListVo">
+        SELECT sm.mv_id AS mvId,
+        sm.mv_bio AS mvBio,
+        si.singer_id AS singerId,
+        sin.singer_name AS singerName,
+        sm.song_id AS songId,
+        sm.song_name AS songName,
+        sm.mv_release_date AS mvReleaseDate,
+        sm.mv_file_path_480p AS mvFilePath480p,
+        sm.mv_file_path_720p AS mvFilePath720p,
+        sm.mv_file_path_1080p AS mvFilePath1080p
+        FROM song_mv sm
+        LEFT JOIN
+        song_info si ON sm.song_id = si.song_id AND si.delete_flag = 0
+        LEFT JOIN
+        singer_info sin ON si.singer_id = sin.singer_id AND sin.delete_flag = 0
+        where sm.delete_flag = 0
+        <if test="qry.songName != null and qry.songName != ''">
+            and sm.song_name = #{qry.songName}
+        </if>
+        <if test="qry.startDate != null">
+            and sm.mv_release_date &gt;= #{qry.startDate}
+        </if>
+        <if test="qry.endDate != null">
+            and sm.mv_release_date &lt; #{qry.endDate}
+        </if>
+        order by sm.mv_release_date DESC
+    </select>
+
+    <select id="selectPageInfo" resultType="com.jlf.music.controller.vo.SongMvVo">
+        SELECT sm.mv_id           AS mvId,
+               sm.mv_release_date AS mvReleaseDate,
+               sm.song_name       AS songName,
+               sm.song_id         AS songId,
+               si.singer_id       AS singerId,
+               sin.singer_name    AS singerName,
+               sm.mv_cover        AS mvCover
+        FROM song_mv sm
+                 LEFT JOIN
+             song_info si ON sm.song_id = si.song_id AND si.delete_flag = 0
+                 LEFT JOIN
+             singer_info sin ON si.singer_id = sin.singer_id AND sin.delete_flag = 0
+        WHERE sm.delete_flag = 0
+        ORDER BY sm.mv_release_date DESC
     </select>
 </mapper>

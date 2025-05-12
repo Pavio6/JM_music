@@ -3,6 +3,7 @@ package com.jlf.music.service;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.jlf.music.controller.vo.SongRankingDailyVo;
 import com.jlf.music.controller.vo.Top3ListeningSingerVo;
+import com.jlf.music.controller.vo.UserListenTimeVo;
 import com.jlf.music.entity.UserListeningRecord;
 
 import java.util.List;
@@ -19,7 +20,7 @@ public interface UserListeningRecordService extends IService<UserListeningRecord
      * 获取用户当天的听歌时长
      * @return 时长
      */
-    Integer getDailyListeningDuration();
+    UserListenTimeVo getDailyListeningDuration();
 
     /**
      * 获取用户当天听歌最久的三位歌手及其时长

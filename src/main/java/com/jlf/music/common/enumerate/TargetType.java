@@ -7,10 +7,22 @@ import lombok.Getter;
  */
 @Getter
 public enum TargetType {
+    /**
+     * 歌曲
+     */
     SONG(0),
+    /**
+     * 歌单
+     */
     PLAYLIST(1),
+    /**
+     * 专辑
+     */
     ALBUM(2),
-    SONG_MV(3);
+    /**
+     * 歌曲MV
+     */
+    MV(3);
 
     private final Integer value;
 

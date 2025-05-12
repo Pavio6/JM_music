@@ -1,19 +1,35 @@
 package com.jlf.music.service.impl;
 
+import cn.hutool.core.collection.CollUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.jlf.music.common.PageRequest;
 import com.jlf.music.common.enumerate.FollowTargetType;
-import com.jlf.music.controller.vo.FollowStatsVo;
-import com.jlf.music.controller.vo.SingerFollowsCountVo;
+import com.jlf.music.common.enumerate.VisibilityType;
+import com.jlf.music.controller.qry.FollowListQry;
+import com.jlf.music.controller.vo.*;
+import com.jlf.music.entity.SingerInfo;
+import com.jlf.music.entity.SysUser;
 import com.jlf.music.entity.UserFollow;
+import com.jlf.music.entity.UserPrivacy;
 import com.jlf.music.exception.ServiceException;
+import com.jlf.music.mapper.SingerInfoMapper;
+import com.jlf.music.mapper.SysUserMapper;
 import com.jlf.music.mapper.UserFollowMapper;
+import com.jlf.music.mapper.UserPrivacyMapper;
 import com.jlf.music.service.UserFollowService;
 import com.jlf.music.utils.SecurityUtils;
 import jakarta.annotation.Resource;
+import org.hibernate.validator.spi.scripting.ScriptEvaluationException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static com.jlf.music.common.constant.RedisConstant.*;
 
@@ -22,9 +38,17 @@ public class UserFollowServiceImpl extends ServiceImpl<UserFollowMapper, UserFol
         implements UserFollowService {
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+    @Resource
+    private SysUserMapper sysUserMapper;
+    @Resource
+    private SingerInfoMapper singerInfoMapper;
+    @Resource
+    private UserFollowMapper userFollowMapper;
+    @Resource
+    private UserPrivacyMapper userPrivacyMapper;
 
     /**
-     * 注/取关用户/歌手
+     * 关注/取关用户/歌手
      *
      * @param followedId 被关注者id
      * @param isFollow   是否关注
@@ -122,6 +146,102 @@ public class UserFollowServiceImpl extends ServiceImpl<UserFollowMapper, UserFol
         // 返回歌手的粉丝数量
         Long singerFollowsCount = stringRedisTemplate.opsForSet().size(singerFollowerKey);
         return new SingerFollowsCountVo(singerFollowsCount);
+    }
+
+    /**
+     * 获取用户关注列表
+     */
+    @Override
+    public IPage<SimpleItemVo> getFollowListByUserId(FollowListQry followListQry, Long userId) {
+        SysUser sysUser = sysUserMapper.selectById(userId);
+        if (sysUser == null) {
+            throw new ServiceException("该用户不存在");
+        }
+        UserPrivacy userPrivacy = userPrivacyMapper.selectById(userId);
+        if (userPrivacy.getFollowingVisibility().equals(VisibilityType.PRIVATE)) {
+            throw new ServiceException("用户关注列表不可见");
+        }
+        Integer value;
+        try {
+            FollowTargetType followTargetType = FollowTargetType.valueOf(followListQry.getType());
+            value = followTargetType.getValue();
+        } catch (Exception e) {
+            throw new ServiceException("不合法的枚举类");
+        }
+        Page<UserFollow> page = new Page<>(followListQry.getPageNum(), followListQry.getPageSize());
+        LambdaQueryWrapper<UserFollow> wrapper = new LambdaQueryWrapper<UserFollow>()
+                .eq(UserFollow::getFollowType, value)
+                .eq(UserFollow::getFollowerId, userId)
+                .orderByDesc(UserFollow::getFollowTime);
+        page = userFollowMapper.selectPage(page, wrapper);
+        List<Long> followedList = page.getRecords().stream().map(UserFollow::getFollowedId).toList();
+        if (CollUtil.isEmpty(followedList)) {
+            return null;
+        }
+        List<SimpleItemVo> list = new ArrayList<>();
+        // 如果关注列表查询的是用户
+        if (FollowTargetType.USER.getValue().equals(value)) {
+            List<SysUser> sysUsers = sysUserMapper.selectBatchIds(followedList);
+            list = sysUsers.stream()
+                    .map(user -> new SimpleItemVo()
+                            .setId(user.getUserId())
+                            .setName(user.getUserName())
+                            .setCover(user.getUserAvatar()))
+                    .toList();
+        } else if (FollowTargetType.SINGER.getValue().equals(value)) {
+            List<SingerInfo> singerInfos = singerInfoMapper.selectBatchIds(followedList);
+            list = singerInfos.stream()
+                    .map(singer -> new SimpleItemVo()
+                            .setId(singer.getSingerId())
+                            .setName(singer.getSingerName())
+                            .setCover(singer.getSingerAvatar()))
+                    .toList();
+        }
+        // 返回结果
+        return new Page<SimpleItemVo>()
+                .setCurrent(page.getCurrent())
+                .setPages(page.getPages())
+                .setTotal(page.getTotal())
+                .setSize(page.getSize())
+                .setRecords(list);
+    }
+
+    /**
+     * 获取用户粉丝列表
+     */
+    @Override
+    public IPage<SimpleItemVo> getFanListByUserId(PageRequest pageRequest, Long userId) {
+        SysUser sysUser = sysUserMapper.selectById(userId);
+        if (sysUser == null) {
+            throw new ServiceException("该用户不存在");
+        }
+        UserPrivacy userPrivacy = userPrivacyMapper.selectById(userId);
+        if (userPrivacy.getFollowersVisibility().equals(VisibilityType.PRIVATE)) {
+            throw new ServiceException("用户粉丝列表不可见");
+        }
+        Page<UserFollow> page = new Page<>(pageRequest.getPageNum(), pageRequest.getPageSize());
+        LambdaQueryWrapper<UserFollow> wrapper = new LambdaQueryWrapper<UserFollow>()
+                .eq(UserFollow::getFollowedId, userId)
+                .eq(UserFollow::getFollowType, FollowTargetType.USER.getValue())
+                .orderByDesc(UserFollow::getFollowTime);
+        page = userFollowMapper.selectPage(page, wrapper);
+        List<Long> followerId = page.getRecords().stream().map(UserFollow::getFollowerId).toList();
+        if (CollUtil.isEmpty(followerId)) {
+            return null;
+        }
+        List<SysUser> sysUsers = sysUserMapper.selectBatchIds(followerId);
+        List<SimpleItemVo> list = sysUsers.stream()
+                .map(user -> new SimpleItemVo()
+                        .setId(user.getUserId())
+                        .setName(user.getUserName())
+                        .setCover(user.getUserAvatar()))
+                .toList();
+        return new Page<SimpleItemVo>()
+                .setCurrent(page.getCurrent())
+                .setPages(page.getPages())
+                .setTotal(page.getTotal())
+                .setSize(page.getSize())
+                .setRecords(list);
     }
 
     /**

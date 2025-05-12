@@ -12,6 +12,23 @@
             (#{item.playlistId}, #{item.songId})
         </foreach>
     </insert>
-
+    <!-- 根据标签类型分页查询歌单 -->
+    <select id="selectPlaylistByTagType" resultType="com.jlf.music.controller.vo.PlaylistBasicInfoVo">
+        SELECT DISTINCT p.playlist_id    as playlistId,
+                        p.playlist_name  as playlistName,
+                        p.playlist_cover as playlistCover,
+                        p.playlist_bio   as playlistBio,
+                        p.creator_id     as creatorId,
+                        p.creator_type   as creatorType,
+                        p.create_time    as createTime,
+                        p.update_time    as updateTime,
+                        p.play_count     as playCount,
+                        p.status
+        FROM playlist_info p
+                 JOIN playlist_tags pt ON p.playlist_id = pt.playlist_id
+                 JOIN tags_info t ON pt.tag_id = t.tag_id and t.delete_flag = 0
+        WHERE t.tag_type = #{tagType}
+          and p.delete_flag = 0
+    </select>
 </mapper>
 

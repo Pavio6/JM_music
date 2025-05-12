@@ -3,11 +3,5 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.jlf.music.mapper.SongInfoMapper">
-    <!-- 批量插入 playlist_tags 表 -->
-    <insert id="insertBatch">
-        INSERT INTO playlist_tags (playlist_id, tag_id) VALUES
-        <foreach collection="playlistTags" item="item" separator=",">
-            (#{item.playlistId}, #{item.tagId})
-        </foreach>
-    </insert>
+
 </mapper>

@@ -55,4 +55,10 @@ public interface SingerInfoService extends IService<SingerInfo> {
      * 新增歌手
      */
     Boolean addSinger(SingerFormDTO singerFormDTO, MultipartFile avatarFile);
+
+    /**
+     * 删除歌手
+     */
+    Boolean deleteSinger(Long singerId);
+
 }

@@ -1,16 +1,13 @@
 package com.jlf.music.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.jlf.music.controller.vo.PrivateMessageUserVo;
+import com.jlf.music.controller.vo.PrivateMessageVo;
 import com.jlf.music.entity.PrivateMessage;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
-import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * @Author JLF
@@ -19,28 +16,32 @@ import java.util.Map;
  */
 @Mapper
 public interface PrivateMessageMapper extends BaseMapper<PrivateMessage> {
-    @Select("SELECT mi.*, " +
-            "s.user_name as sender_name, s.user_avatar as sender_avatar, " +
-            "r.user_name as receiver_name, r.user_avatar as receiver_avatar " +
-            "FROM message_info mi " +
-            "JOIN sys_user s ON mi.sender_id = s.user_id " +
-            "JOIN sys_user r ON mi.receiver_id = r.user_id " +
-            "WHERE (mi.sender_id = #{userId} AND mi.receiver_id = #{otherUserId}) " +
-            "OR (mi.sender_id = #{otherUserId} AND mi.receiver_id = #{userId}) " +
-            "ORDER BY mi.create_time DESC")
-    IPage<Map<String, Object>> getConversationMessages(
-            Page<Map<String, Object>> page,
-            @Param("userId") Long userId,
-            @Param("otherUserId") Long otherUserId);
 
-    @Select("SELECT mi.* FROM message_info mi " +
-            "WHERE mi.receiver_id = #{userId} AND mi.is_read = 0 " +
-            "ORDER BY mi.create_time")
+    /**
+     * 获取指定用户的未读消息列表
+     *
+     * @param userId 目标用户ID（接收者）
+     * @return 未读消息列表（按时间倒序）
+     */
     List<PrivateMessage> getUnreadMessages(@Param("userId") Long userId);
 
-    @Update("UPDATE message_info SET status = 'RECALLED' " +
-            "WHERE id = #{messageId} AND sender_id = #{userId} " +
-            "AND status != 'RECALLED' " +
-            "AND create_time > DATE_SUB(NOW(), INTERVAL 2 MINUTE)")
-    int recallMessage(@Param("messageId") Long messageId, @Param("userId") Long userId);
+    /**
+     * 获取用户的私聊联系人列表（最近交流过的用户）
+     *
+     * @param senderId 当前用户ID（发送者）
+     * @return 联系人信息视图对象列表，包含最后一条消息摘要
+     * @apiNote 返回结果按最后沟通时间倒序排列
+     */
+    List<PrivateMessageUserVo> getPrivateMessageUsers(@Param("senderId") Long senderId);
+
+    /**
+     * 获取两个用户之间的私聊消息记录
+     *
+     * @param senderId 发送者用户ID
+     * @param receiverId 接收者用户ID
+     * @return 私聊消息视图对象列表（按时间正序排列）
+     * @implNote 包含消息内容、发送时间、已读状态等字段
+     */
+    List<PrivateMessageVo> getPrivateMessages(@Param("senderId") Long senderId,
+                                              @Param("receiverId") Long receiverId);
 }

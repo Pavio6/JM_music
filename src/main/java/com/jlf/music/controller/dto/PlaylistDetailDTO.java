@@ -31,6 +31,10 @@ public class PlaylistDetailDTO {
      */
     private List<String> tagName;
     /**
+     * 是否被收藏
+     */
+    private Boolean isCollected;
+    /**
      * 歌曲列表
      */
     private List<SongBasicInfoVo> songs;

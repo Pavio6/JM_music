@@ -66,7 +66,6 @@ public class AdminUserController {
                                       @RequestPart(value = "userAvatarFile", required = false) MultipartFile userAvatarFile) {
 
         return Result.success(sysUserService.updateAdmin(userId, userFormDTO, userAvatarFile));
-
-
     }
+
 }

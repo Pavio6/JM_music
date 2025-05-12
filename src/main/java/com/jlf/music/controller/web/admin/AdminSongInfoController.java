@@ -61,7 +61,18 @@ public class AdminSongInfoController {
     public Result<Boolean> addSong(@RequestPart("songFormDTO") SongFormDTO songFormDTO,
                                    @RequestPart(value = "songLyricsFile", required = false) MultipartFile songLyricsFile,
                                    @RequestPart(value = "songFile", required = false) MultipartFile songFile,
-                                   @RequestPart(value = "songCoverFile", required = false) MultipartFile songCoverFile) {
-        return Result.success(songInfoService.addSong(songFormDTO, songLyricsFile, songFile, songCoverFile));
+                                   @RequestPart(value = "songCoverFile", required = false) MultipartFile songCoverFile,
+                                   @RequestPart(value = "mvFilePath480p", required = false) MultipartFile mvFilePath480p,
+                                   @RequestPart(value = "mvFilePath720p", required = false) MultipartFile mvFilePath720p,
+                                   @RequestPart(value = "mvFilePath1080p", required = false) MultipartFile mvFilePath1080p) {
+        return Result.success(songInfoService.addSong(songFormDTO, songLyricsFile, songFile, songCoverFile, mvFilePath480p, mvFilePath720p, mvFilePath1080p));
+    }
+
+    /**
+     * 删除歌曲
+     */
+    @DeleteMapping("/{songId}")
+    public Result<Boolean> deleteSong(@PathVariable Long songId) {
+        return Result.success(songInfoService.deleteSongById(songId));
     }
 }

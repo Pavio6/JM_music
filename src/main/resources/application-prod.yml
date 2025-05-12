@@ -1,2 +1,78 @@
 server:
-  port: 8088
+  port: 8082
+spring:
+  servlet:
+    multipart:
+      max-file-size: 100MB # 单个文件最大大小
+      max-request-size: 500MB # 所有文件最大大小
+      enabled: true
+  jackson:
+    # 格式化全局时间字段
+    date-format: yyyy-MM-dd HH:mm:ss
+    # 指定时间区域类型
+    time-zone: Asia/Yekaterinburg
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    url: jdbc:mysql://192.168.236.101:3306/jm_music?useUnicode=true&characterEncoding=UTF-8&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=Asia/Yekaterinburg
+    username: root
+    password: Jlf.123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    druid:
+      initial-size: 5
+      min-idle: 5
+      max-active: 20
+      max-wait: 60000
+      validation-query: SELECT 1
+      test-on-borrow: false
+      test-while-idle: true
+  data:
+    redis:
+      host: 192.168.236.101
+      port: 6379
+      database: 1
+      timeout: 10s
+minio:
+  endpoint: http://192.168.236.101:9000
+  accessKey: minioadmin
+  secretKey: minioadmin
+
+
+
+
+#  rabbitmq:
+#    host: 192.168.236.101
+#    port: 5672
+#    username: admin
+#    password: 123456
+#    virtual-host: admin-virtual # 虚拟主机
+#    listener:
+#      simple:
+#        concurrency: 5 # 消费者并发线程数(同时处理消息的线程数)
+#        max-concurrency: 10 # 消费者最大并发线程数(动态调整并发数)
+#        prefetch: 1 # 消费者每次只能处理 1 条消息
+#        default-requeue-rejected: true # 消息处理失败后 默认将消息再放回队列
+
+# mybatis-plus配置
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl # 将 SQL 日志输出到控制台
+    map-underscore-to-camel-case: true # 开启自动驼峰映射
+  mapper-locations: classpath*:mapper/*Mapper.xml # mybatis映射文件的位置
+  type-aliases-package: com.jlf.music.entity
+  global-config:
+    # 将删除操作改为更新操作(逻辑删除)
+    db-config:
+      logic-delete-field: deleteFlag # 全局逻辑删除字段名
+      logic-delete-value: 1 # 逻辑已删除值
+      logic-not-delete-value: 0 # 逻辑未删除值
+
+
+
+app:
+  # WebSocket 配置
+  websocket:
+    endpoint: /ws
+    allowed-origins: "*"
+  # 私信功能配置
+  message:
+    recall-time-limit: 120 # 撤回消息时间限制(秒)

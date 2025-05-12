@@ -28,7 +28,7 @@ public class FileServiceImpl implements FileService {
     // 定义允许的图片格式
     private static final List<String> ALLOWED_IMAGE_EXTENSIONS = Arrays.asList(".jpg", ".jpeg", ".png", ".gif");
     // 允许的音频文件格式列表
-    private static final List<String> ALLOWED_AUDIO_EXTENSIONS = Arrays.asList(".mp3", ".wav", ".ogg", ".mp4");
+    private static final List<String> ALLOWED_AUDIO_EXTENSIONS = Arrays.asList(".mp3", ".wav", ".ogg");
     // 允许的视频文件格式列表
     private static final List<String> ALLOWED_VIDEO_EXTENSIONS = List.of(".mp4");
     // 允许的歌词文件格式列表
@@ -167,7 +167,7 @@ public class FileServiceImpl implements FileService {
             }
         } else if (uploadFileType == UploadFileType.SONG_MV) {
             if (!ALLOWED_VIDEO_EXTENSIONS.contains(fileExtension.toLowerCase())) {
-                throw new IllegalArgumentException("不支持的视频文件格式，仅支持：" + String.join(", ", ALLOWED_LYRICS_EXTENSIONS));
+                throw new IllegalArgumentException("不支持的视频文件格式，仅支持：" + String.join(", ", ALLOWED_VIDEO_EXTENSIONS));
             }
         }
         try {

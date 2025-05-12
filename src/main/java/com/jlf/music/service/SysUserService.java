@@ -2,12 +2,11 @@ package com.jlf.music.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.jlf.music.common.PageRequest;
 import com.jlf.music.controller.dto.*;
+import com.jlf.music.controller.qry.FollowListQry;
 import com.jlf.music.controller.qry.UserQry;
-import com.jlf.music.controller.vo.UserRegisterVo;
-import com.jlf.music.controller.vo.UserDetailInfoVo;
-import com.jlf.music.controller.vo.UserPersonalInfoVo;
-import com.jlf.music.controller.vo.UserLoginVo;
+import com.jlf.music.controller.vo.*;
 import com.jlf.music.entity.SysUser;
 import jakarta.validation.Valid;
 import org.springframework.validation.BindingResult;
@@ -73,4 +72,13 @@ public interface SysUserService extends IService<SysUser> {
      * 更新管理员信息
      */
     Boolean updateAdmin(Long userId, UserUpdateDTO userFormDTO, MultipartFile userAvatarFile);
+    /**
+     * 获取用户个人的关注列表
+     */
+    IPage<SimpleItemVo> getFollowList(FollowListQry followListQry);
+
+    /**
+     * 获取用户个人的粉丝列表
+     */
+    IPage<SimpleItemVo> getFanList(PageRequest pageRequest);
 }

@@ -18,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping("/api/admin/playlist")
 public class AdminPlaylistController {
+
     @Resource
     private PlaylistInfoService playlistInfoService;
 
@@ -54,7 +55,14 @@ public class AdminPlaylistController {
      */
     @GetMapping("/{playlistId}")
     public Result<PlaylistBasicInfoVo> getPlaylistDetail(@PathVariable Long playlistId) {
-        return Result.success(playlistInfoService.getAdminPlaylistDetailById(playlistId));
+        return Result.success(playlistInfoService.getAdminPlaylistDetail(playlistId));
+    }
+    /**
+     * 删除歌单
+     */
+    @DeleteMapping("/{playlistId}")
+    public Result<Boolean> deletePlaylist(@PathVariable Long playlistId) {
+        return Result.success(playlistInfoService.deletePlaylist(playlistId));
     }
 
 }

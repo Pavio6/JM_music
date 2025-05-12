@@ -27,9 +27,12 @@
             <id property="songId" column="song_id"/>
             <result property="songName" column="song_name"/>
             <result property="songCover" column="song_cover"/>
+            <result property="playCount" column="play_count"/>
+            <result property="singerId" column="singer_id"/>
             <result property="singerName" column="singer_name"/>
+            <result property="songReleaseDate" column="song_release_date"/>
             <result property="songDuration" column="song_duration"/>
-            <result property="songFilePath" column="song_file_path"/>
+            <result property="albumId" column="album_id"/>
             <result property="albumName" column="album_name"/>
         </collection>
     </resultMap>
@@ -46,29 +49,35 @@
         pi.play_count, # 歌单播放量
         su.user_id, # 用户id
         su.user_name, # 用户名称
-        ti.tag_name,
+        ti.tag_name, # 标签名称
         si.song_id, # 歌曲id
         si.song_name, # 歌曲名称
+        si.song_release_date,
         si.song_cover, # 歌曲封面图
+        si.play_count,
+        si.singer_id,
         sii.singer_name, # 歌手名
         si.song_duration, # 歌曲时长
+        ai.album_id,
         ai.album_name, # 专辑名
-        si.song_file_path # 歌曲音频文件
+        sm.mv_id
         FROM jm_music.playlist_info pi
         LEFT JOIN jm_music.sys_user su
         ON pi.creator_id = su.user_id AND su.delete_flag = 0
         LEFT JOIN jm_music.playlist_tags pt
-        ON pi.playlist_id = pt.playlist_id AND pt.delete_flag = 0
+        ON pi.playlist_id = pt.playlist_id
         LEFT JOIN jm_music.tags_info ti
         ON pt.tag_id = ti.tag_id AND ti.delete_flag = 0
         LEFT JOIN jm_music.playlist_song ps
-        ON pi.playlist_id = ps.playlist_id AND ps.delete_flag = 0
+        ON pi.playlist_id = ps.playlist_id
         LEFT JOIN jm_music.song_info si
         ON ps.song_id = si.song_id AND si.delete_flag = 0
         left join jm_music.album_info ai
         on si.album_id = ai.album_id and ai.delete_flag = 0
         LEFT JOIN jm_music.singer_info sii
         ON si.singer_id = sii.singer_id AND sii.delete_flag = 0
+        left join song_mv sm
+        on sm.song_id = si.song_id and sm.delete_flag = 0
         WHERE pi.playlist_id = #{playlistId} AND pi.delete_flag = 0
     </select>
     <!--  获取歌单列表  -->

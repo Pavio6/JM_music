@@ -39,18 +39,18 @@ spring:
           max-idle: 10 # 最大空闲连接数
           min-idle: 5 # 最小空闲连接数
           max-active: 50 # 最大活动连接数
-  rabbitmq:
-    host: 192.168.236.101
-    port: 5672
-    username: admin
-    password: 123456
-    virtual-host: admin-virtual # 虚拟主机
-    listener:
-      simple:
-        concurrency: 5 # 消费者并发线程数(同时处理消息的线程数)
-        max-concurrency: 10 # 消费者最大并发线程数(动态调整并发数)
-        prefetch: 1 # 消费者每次只能处理 1 条消息
-        default-requeue-rejected: true # 消息处理失败后 默认将消息再放回队列
+#  rabbitmq:
+#    host: 192.168.236.101
+#    port: 5672
+#    username: admin
+#    password: 123456
+#    virtual-host: admin-virtual # 虚拟主机
+#    listener:
+#      simple:
+#        concurrency: 5 # 消费者并发线程数(同时处理消息的线程数)
+#        max-concurrency: 10 # 消费者最大并发线程数(动态调整并发数)
+#        prefetch: 1 # 消费者每次只能处理 1 条消息
+#        default-requeue-rejected: true # 消息处理失败后 默认将消息再放回队列
 
 # mybatis-plus配置
 mybatis-plus:

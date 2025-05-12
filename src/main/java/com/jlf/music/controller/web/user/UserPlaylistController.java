@@ -5,8 +5,10 @@ import com.jlf.music.common.PageRequest;
 import com.jlf.music.common.Result;
 import com.jlf.music.controller.dto.EditPlaylistDTO;
 import com.jlf.music.controller.dto.PlaylistDetailDTO;
+import com.jlf.music.controller.qry.PlaylistCollectQry;
 import com.jlf.music.controller.qry.PlaylistPageQry;
 import com.jlf.music.controller.vo.PlaylistBasicInfoVo;
+import com.jlf.music.controller.vo.SimpleItemVo;
 import com.jlf.music.service.PlaylistInfoService;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.*;
@@ -37,28 +39,37 @@ public class UserPlaylistController {
     /**
      * 编辑歌单属性
      *
-     * @param id              歌单id
+     * @param playlistId      歌单id
      * @param editPlaylistDTO 编辑的值
      * @return Boolean
      */
-    @PutMapping("/{id}/edit")
-    public Result<Boolean> editPlaylistProperties(@PathVariable(value = "id") Long id,
+    @PutMapping("/{playlistId}/edit")
+    public Result<Boolean> editPlaylistProperties(@PathVariable(value = "playlistId") Long playlistId,
                                                   EditPlaylistDTO editPlaylistDTO,
                                                   @RequestParam(required = false) MultipartFile playlistCover) {
-        return Result.success(playlistInfoService.editPlaylistProperties(id, editPlaylistDTO, playlistCover));
+        return Result.success(playlistInfoService.editPlaylistProperties(playlistId, editPlaylistDTO, playlistCover));
     }
 
     /**
      * 添加歌曲到歌单中
      *
-     * @param id      歌单ID
-     * @param songIds 歌曲ID列表
+     * @param playlistId 歌单ID
+     * @param songIds    歌曲ID列表
      * @return Boolean
      */
-    @PutMapping("/{id}/addSongs")
-    public Result<Boolean> addSongsToPlaylist(@PathVariable(value = "id") Long id,
+    @PutMapping("/{playlistId}/addSongs")
+    public Result<Boolean> addSongsToPlaylist(@PathVariable(value = "playlistId") Long playlistId,
                                               @RequestParam List<Long> songIds) {
-        return Result.success(playlistInfoService.addSongsToPlaylist(id, songIds));
+        return Result.success(playlistInfoService.addSongsToPlaylist(playlistId, songIds));
+    }
+
+    /**
+     * 从歌单中移除歌曲
+     */
+    @DeleteMapping("/{playlistId}/removeSongs")
+    public Result<Boolean> removeSongsFromPlaylist(@PathVariable(value = "playlistId") Long playlistId,
+                                                   @RequestParam List<Long> songIds) {
+        return Result.success(playlistInfoService.removeSongsFromPlaylist(playlistId, songIds));
     }
 
     /**
@@ -103,12 +114,26 @@ public class UserPlaylistController {
      * @param userId 用户id
      * @return IPage<PlaylistBasicInfoVo>
      */
-    @GetMapping("/{userId}/list")
+    @GetMapping("/{userId}/create")
     public Result<IPage<PlaylistBasicInfoVo>> getPlaylistsByUserId(@PathVariable("userId") Long userId,
                                                                    PageRequest pageRequest) {
         return Result.success(playlistInfoService.getPlaylistsByUserId(userId, pageRequest));
     }
+    /**
+     * 获取用户个人创建的歌单列表
+     */
+    @GetMapping("/mine")
+    public Result<IPage<PlaylistBasicInfoVo>> getPlaylistsMine(PageRequest pageRequest) {
+        return Result.success(playlistInfoService.getPlaylistsMine(pageRequest));
+    }
 
-
+    /**
+     * 获取用户收藏列表
+     */
+    @GetMapping("/{userId}/collect")
+    public Result<IPage<SimpleItemVo>> getPlaylistCollectByUserId(@PathVariable("userId") Long userId,
+                                                                  PlaylistCollectQry playlistCollectQry) {
+        return Result.success(playlistInfoService.getPlaylistCollectByUserId(userId, playlistCollectQry));
+    }
 
 }

@@ -3,6 +3,7 @@ package com.jlf.music.controller.web.user;
 import com.jlf.music.common.Result;
 import com.jlf.music.controller.vo.SongRankingDailyVo;
 import com.jlf.music.controller.vo.Top3ListeningSingerVo;
+import com.jlf.music.controller.vo.UserListenTimeVo;
 import com.jlf.music.service.UserListeningRecordService;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.*;
@@ -19,8 +20,9 @@ public class UserListeningRecordController {
     private UserListeningRecordService userListeningRecordService;
 
     /**
-     * 记录用户听歌行为
-     * @param songId 歌曲id
+     * 记录用户播放时长
+     *
+     * @param songId       歌曲id
      * @param playDuration 播放时长
      * @return Boolean
      */
@@ -31,15 +33,17 @@ public class UserListeningRecordController {
 
     /**
      * 获取用户当天的听歌时长
+     *
      * @return 时长(秒)
      */
     @GetMapping("/daily-duration")
-    public Result<Integer> getDailyListeningDuration() {
+    public Result<UserListenTimeVo> getDailyListeningDuration() {
         return Result.success(userListeningRecordService.getDailyListeningDuration());
     }
 
     /**
      * 获取用户当天听歌最久的三位歌手及其时长
+     *
      * @return List<Top3ListeningSingerVo>
      */
     @GetMapping("/most-listened-singers")
@@ -49,6 +53,7 @@ public class UserListeningRecordController {
 
     /**
      * 获取用户当天歌曲排名
+     *
      * @return List<SongRankingDailyVo>
      */
     @GetMapping("/song-ranking")

@@ -49,7 +49,7 @@
         s.song_duration AS songDuration,
         s.song_cover AS songCover,
         s.song_release_date AS songReleaseDate,
-        si.singer_id AS singId,
+        si.singer_id AS singerId,
         si.singer_name AS singerName,
         ai.album_id AS albumId,
         ai.album_name AS albumName,
@@ -90,7 +90,7 @@
         FROM song_info si
                  LEFT JOIN singer_info sin
                            ON si.singer_id = sin.singer_id
-                               AND sin.delete_flag = 0 -- 将歌手过滤条件放在JOIN条件里
+                               AND sin.delete_flag = 0
         WHERE si.song_name LIKE CONCAT('%', #{keyword}, '%')
           AND si.delete_flag = 0
         ORDER BY si.create_time DESC
@@ -108,6 +108,7 @@
                s.song_release_date AS songReleaseDate,
                a.album_id          AS albumId,
                a.album_name        AS albumName,
+               s.play_count        AS playCount,
                sm.mv_id            AS mvId
         FROM song_info s
                  LEFT JOIN singer_info si
@@ -124,7 +125,6 @@
 
     <!-- 查询飙升榜 -->
     <select id="selectRisingSongs" resultType="com.jlf.music.controller.vo.SongBasicInfoVo">
-        -- 查询歌曲飙升榜记录，按增长率降序排列，最多返回50条记录
         SELECT s.song_id           AS songId,
                s.song_name         AS songName,
                si.singer_id        AS singerId,
@@ -136,15 +136,15 @@
                a.album_name        AS albumName,
                sm.mv_id            AS mvId
         FROM song_info s
-                 left join song_mv sm on sm.song_id = s.song_id and delete_flag = 0
+                 left join song_mv sm on sm.song_id = s.song_id and sm.delete_flag = 0
                  LEFT JOIN
              singer_info si
              ON s.singer_id = si.singer_id
-                 AND si.delete_flag = 0 -- 关联歌手信息，且歌手未被删除
+                 AND si.delete_flag = 0
                  LEFT JOIN
              album_info a
              ON s.album_id = a.album_id
-                 AND a.delete_flag = 0 -- 关联专辑信息，且专辑未被删除
+                 AND a.delete_flag = 0
                  LEFT JOIN
              song_play_daily yesterday
              ON s.song_id = yesterday.song_id
@@ -153,12 +153,12 @@
              song_play_daily two_days_ago
              ON s.song_id = two_days_ago.song_id
                  AND two_days_ago.`date` = DATE_SUB(CURDATE(), INTERVAL 2 DAY) -- 关联前天播放量
-        WHERE s.delete_flag = 0                     -- 只查询未被删除的歌曲
+        WHERE s.delete_flag = 0
           AND (yesterday.play_count IS NOT NULL
             OR two_days_ago.play_count IS NOT NULL) -- 确保昨天或前天的播放量数据存在
         ORDER BY (COALESCE(yesterday.play_count, 0) - COALESCE(two_days_ago.play_count, 0)) DESC -- 按增长率降序排列
             LIMIT
-        50 -- 最多返回50条记录
+        50
     </select>
     <!--  获取播放列表歌曲信息  -->
     <select id="selectSongDetails" resultType="com.jlf.music.controller.vo.SongSimpleInfoVo">
@@ -203,16 +203,18 @@
                s.singer_id,
                si.singer_name,
                s.album_id,
-               a.album_name
+               a.album_name,
+               s.play_count,
+               sm.mv_id
         FROM song_info s
-                 JOIN
-             singer_info si ON s.singer_id = si.singer_id
-                 JOIN
-             album_info a ON s.album_id = a.album_id
+                 left join
+             song_mv sm on s.song_id = sm.song_id and sm.delete_flag = 0
+                 left JOIN
+             singer_info si ON s.singer_id = si.singer_id and si.delete_flag = 0
+                 left JOIN
+             album_info a ON s.album_id = a.album_id and a.delete_flag = 0
         WHERE s.singer_id = #{singerId}
           AND s.delete_flag = 0
-          AND si.delete_flag = 0
-          AND a.delete_flag = 0
         ORDER BY s.play_count DESC LIMIT 10
     </select>
     <!-- 根据专辑 ID 查询歌曲基本信息 -->
@@ -262,9 +264,9 @@
              album_info a ON s.album_id = a.album_id AND a.delete_flag = 0
                  left join
              song_mv sm on s.song_id = sm.song_id and sm.delete_flag = 0
-        WHERE s.song_release_date >= #{startTime}
+        WHERE s.song_release_date &gt;= #{startDate}
+          AND s.song_release_date &lt; #{endDate}
           AND s.delete_flag = 0
-        ORDER BY s.song_release_date DESC
-            LIMIT #{limit}
+        ORDER BY s.song_release_date DESC LIMIT 50
     </select>
 </mapper>

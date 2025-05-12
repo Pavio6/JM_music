@@ -99,4 +99,11 @@ public class AdminAlbumInfoController {
                                     @RequestPart("albumCoverFile") MultipartFile albumCoverFile) {
         return Result.success(albumInfoService.addAlbum(albumFormDTO, albumCoverFile));
     }
+    /**
+     * 删除专辑
+     */
+    @DeleteMapping("/{albumId}")
+    public Result<Boolean> deleteAlbum(@PathVariable Long albumId) {
+        return Result.success(albumInfoService.deleteAlbum(albumId));
+    }
 }

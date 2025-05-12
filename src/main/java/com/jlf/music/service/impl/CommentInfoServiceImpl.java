@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.github.houbb.sensitive.word.core.SensitiveWordHelper;
 import com.jlf.music.common.enumerate.TargetType;
 import com.jlf.music.controller.dto.CommentDTO;
 import com.jlf.music.controller.qry.CommentQry;
@@ -53,8 +54,12 @@ public class CommentInfoServiceImpl extends ServiceImpl<CommentInfoMapper, Comme
         if (StrUtil.isBlank(commentDTO.getContent())) {
             throw new ServiceException("评论内容不能为空");
         }
+        // 检查是否包含敏感词
+        if (SensitiveWordHelper.contains(commentDTO.getContent())) {
+            throw new ServiceException("评论中包含敏感词");
+        }
         CommentInfo commentInfo = new CommentInfo();
-        // 类型为歌曲
+        // 判断评论类型并校验
         if (ObjectUtil.equals(commentDTO.getTargetType(), TargetType.SONG)) {
             // 判断歌曲是否存在
             if (songInfoMapper.selectById(commentDTO.getTargetId()) == null) {
@@ -69,17 +74,18 @@ public class CommentInfoServiceImpl extends ServiceImpl<CommentInfoMapper, Comme
             if (albumInfoMapper.selectById(commentDTO.getTargetId()) == null) {
                 throw new ServiceException("专辑不存在");
             }
-        } else if (ObjectUtil.equals(commentDTO.getTargetType(), TargetType.SONG_MV)) {
+        } else if (ObjectUtil.equals(commentDTO.getTargetType(), TargetType.MV)) {
             if (songMvMapper.selectById(commentDTO.getTargetId()) == null) {
                 throw new ServiceException("歌曲视频不存在");
             }
         } else {
             throw new ServiceException("不存在该类型");
         }
-        commentInfo.setTargetType(commentDTO.getTargetType().getValue())
-                .setTargetId(commentDTO.getTargetId())
-                .setContent(commentDTO.getContent())
-                .setUserId(SecurityUtils.getUserId());
+        // 设置评论对象的基本信息
+        commentInfo.setTargetType(commentDTO.getTargetType().getValue()) // 评论类型
+                .setTargetId(commentDTO.getTargetId()) // 目标id
+                .setContent(commentDTO.getContent()) // 内容
+                .setUserId(SecurityUtils.getUserId()); // 评论用户id
         // 检查是否存在父评论
         if (commentDTO.getParentCommentId() != null) {
             // 查询是否存在父评论id 的评论

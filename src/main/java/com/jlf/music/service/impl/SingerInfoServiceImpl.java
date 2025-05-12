@@ -6,23 +6,15 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.jlf.music.common.enumerate.FollowTargetType;
 import com.jlf.music.common.enumerate.UploadFileType;
 import com.jlf.music.controller.dto.SingerFormDTO;
 import com.jlf.music.controller.qry.SingerByRegionQry;
 import com.jlf.music.controller.qry.SingerQry;
-import com.jlf.music.controller.vo.SingerBasicInfoVo;
-import com.jlf.music.controller.vo.SingerDetailInfoVo;
-import com.jlf.music.controller.vo.SingerVo;
-import com.jlf.music.controller.vo.SongBasicInfoVo;
-import com.jlf.music.entity.RegionInfo;
-import com.jlf.music.entity.SingerInfo;
-import com.jlf.music.entity.SongInfo;
-import com.jlf.music.entity.UserFollow;
+import com.jlf.music.controller.vo.*;
+import com.jlf.music.entity.*;
 import com.jlf.music.exception.ServiceException;
-import com.jlf.music.mapper.RegionInfoMapper;
-import com.jlf.music.mapper.SingerInfoMapper;
-import com.jlf.music.mapper.SongInfoMapper;
-import com.jlf.music.mapper.UserFollowMapper;
+import com.jlf.music.mapper.*;
 import com.jlf.music.service.FileService;
 import com.jlf.music.service.SingerInfoService;
 import com.jlf.music.utils.CopyUtils;
@@ -55,6 +47,8 @@ public class SingerInfoServiceImpl extends ServiceImpl<SingerInfoMapper, SingerI
     private SongInfoMapper songInfoMapper;
     @Resource
     private FileService fileService;
+    @Autowired
+    private AlbumInfoMapper albumInfoMapper;
 
     /**
      * 分页查询singer
@@ -100,7 +94,7 @@ public class SingerInfoServiceImpl extends ServiceImpl<SingerInfoMapper, SingerI
     public SingerDetailInfoVo getSingerDetailById(Long singerId) {
         SingerInfo singerInfo = this.getById(singerId);
         if (singerInfo == null) {
-            throw new ServiceException("没有该歌手");
+            throw new ServiceException("该歌手不存在");
         }
         SingerDetailInfoVo vo = new SingerDetailInfoVo();
         vo.setSingerAvatar(singerInfo.getSingerAvatar())
@@ -112,26 +106,39 @@ public class SingerInfoServiceImpl extends ServiceImpl<SingerInfoMapper, SingerI
         vo.setRegionName(regionName);
         // 获取歌手粉丝数量
         // 从redis中查找
-        String count = (String) stringRedisTemplate.opsForHash().get(FOLLOWERS_COUNT, singerId.toString());
+        String count = stringRedisTemplate.opsForValue().get(FOLLOWERS_COUNT + singerId);
         // 命中
         if (count != null) {
             vo.setFollowerCount(Long.parseLong(count));
         } else {
             // 未命中 从数据库中查询
             Long newCount = userFollowMapper.selectCount(new LambdaQueryWrapper<UserFollow>()
-                    .eq(UserFollow::getFollowType, 1)
+                    .eq(UserFollow::getFollowType, FollowTargetType.SINGER.getValue())
                     .eq(UserFollow::getFollowedId, singerId));
             // 如果数据库查询结果为空，设置默认值（避免缓存穿透）
             if (newCount == null) {
                 newCount = 0L;
             }
             // 存入redis
-            stringRedisTemplate.opsForHash().put(FOLLOWERS_COUNT, singerId.toString(), newCount.toString());
+            stringRedisTemplate.opsForValue().set(FOLLOWERS_COUNT + singerId, newCount.toString());
             // 有效期30分钟
-            stringRedisTemplate.expire(FOLLOWERS_COUNT, 30, TimeUnit.MINUTES);
+            stringRedisTemplate.expire(FOLLOWERS_COUNT + singerId, 30, TimeUnit.MINUTES);
             vo.setFollowerCount(newCount);
         }
+        // 获取歌手的热门歌曲
+        List<SongBasicInfoVo> songBasicInfoVos = searchBySingerId(singerId);
+        vo.setSongs(songBasicInfoVos);
+        // 获取歌手的热门专辑
+        List<AlbumSearchVo> albumSearchVos = searchAlbumBySingerId(singerId);
+        vo.setAlbums(albumSearchVos);
         return vo;
+    }
+
+    private List<AlbumSearchVo> searchAlbumBySingerId(Long singerId) {
+        List<AlbumInfo> albumInfos = albumInfoMapper.selectList(new LambdaQueryWrapper<AlbumInfo>()
+                .eq(AlbumInfo::getSingerId, singerId)
+                .last("limit 5"));
+        return CopyUtils.classCopyList(albumInfos, AlbumSearchVo.class);
     }
 
     /**
@@ -225,5 +232,25 @@ public class SingerInfoServiceImpl extends ServiceImpl<SingerInfoMapper, SingerI
             singerInfo.setSingerAvatar(singerAvatar);
         }
         return singerInfoMapper.insert(singerInfo) > 0;
+    }
+
+    /**
+     * 删除歌手
+     */
+    @Override
+    public Boolean deleteSinger(Long singerId) {
+        SingerInfo singerInfo = singerInfoMapper.selectById(singerId);
+        if (singerInfo == null) {
+            throw new ServiceException("歌手不存在，无法删除");
+        }
+        if (albumInfoMapper.selectCount(new LambdaQueryWrapper<AlbumInfo>()
+                .eq(AlbumInfo::getSingerId, singerId)) > 0) {
+            throw new ServiceException("无法删除，请先删除歌手关联的专辑信息");
+        }
+        if (songInfoMapper.selectCount(new LambdaQueryWrapper<SongInfo>()
+                .eq(SongInfo::getSingerId, singerId)) > 0) {
+            throw new ServiceException("无法删除，请先删除歌手关联的歌曲信息");
+        }
+        return singerInfoMapper.deleteById(singerId) > 0;
     }
 }

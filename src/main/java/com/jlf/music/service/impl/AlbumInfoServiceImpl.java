@@ -4,20 +4,22 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.jlf.music.common.enumerate.QueueType;
+import com.jlf.music.common.enumerate.TargetType;
 import com.jlf.music.common.enumerate.UploadFileType;
 import com.jlf.music.controller.dto.AlbumFormDTO;
 import com.jlf.music.controller.qry.AlbumQry;
 import com.jlf.music.controller.vo.AlbumVo;
 import com.jlf.music.controller.vo.SongBasicInfoVo;
-import com.jlf.music.entity.AlbumInfo;
-import com.jlf.music.entity.SongInfo;
+import com.jlf.music.entity.*;
 import com.jlf.music.exception.ServiceException;
-import com.jlf.music.mapper.AlbumInfoMapper;
-import com.jlf.music.mapper.SongInfoMapper;
+import com.jlf.music.mapper.*;
 import com.jlf.music.service.AlbumInfoService;
 import com.jlf.music.service.FileService;
+import com.jlf.music.service.SongInfoService;
 import com.jlf.music.utils.CopyUtils;
 import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -32,6 +34,16 @@ public class AlbumInfoServiceImpl extends ServiceImpl<AlbumInfoMapper, AlbumInfo
     private SongInfoMapper songInfoMapper;
     @Resource
     private FileService fileService;
+    @Resource
+    private SongInfoService songInfoService;
+    @Resource
+    private UserFavoriteMapper userFavoriteMapper;
+    @Resource
+    private PlayQueueMapper playQueueMapper;
+    @Autowired
+    private TypeInfoMapper typeInfoMapper;
+    @Autowired
+    private SingerInfoMapper singerInfoMapper;
 
     /**
      * 分页或根据条件模糊查询album
@@ -107,5 +119,56 @@ public class AlbumInfoServiceImpl extends ServiceImpl<AlbumInfoMapper, AlbumInfo
             albumInfo.setAlbumCover(albumCover);
         }
         return albumInfoMapper.insert(albumInfo) > 0;
+    }
+
+    /**
+     * 删除专辑
+     */
+    @Override
+    public Boolean deleteAlbum(Long albumId) {
+        if (albumInfoMapper.selectById(albumId) == null) {
+            throw new ServiceException("该专辑不存在");
+        }
+        // 判断用户是否收藏了该专辑
+        if (userFavoriteMapper.selectCount(new LambdaQueryWrapper<UserFavorite>()
+                .eq(UserFavorite::getTargetType, TargetType.ALBUM.getValue())
+                .eq(UserFavorite::getTargetId, albumId)) > 0) {
+            throw new ServiceException("无法删除专辑，该专辑已被用户收藏");
+        }
+
+        // 删除专辑及其对应的所有歌曲
+        List<SongInfo> list = songInfoMapper.selectList(new LambdaQueryWrapper<SongInfo>()
+                .eq(SongInfo::getAlbumId, albumId));
+        for (SongInfo songInfo : list) {
+            songInfoService.deleteSongInfo(songInfo.getSongId());
+        }
+        return albumInfoMapper.deleteById(albumId) > 0;
+    }
+
+    /**
+     * 获取专辑类型
+     */
+    @Override
+    public List<TypeInfo> getAlbumType() {
+        return typeInfoMapper.selectList(null);
+    }
+
+    /**
+     * 获取专辑详情
+     */
+    @Override
+    public AlbumVo getAlbumDetailByAlbumId(Long albumId) {
+        AlbumInfo albumInfo = albumInfoMapper.selectById(albumId);
+        if (albumInfo == null) {
+            throw new ServiceException("专辑不存在");
+        }
+        List<SongBasicInfoVo> albumWithSongs = getAlbumWithSongs(albumId);
+        AlbumVo albumVo = CopyUtils.classCopy(albumInfo, AlbumVo.class);
+        albumVo.setSongs(albumWithSongs);
+        String singerName = singerInfoMapper.selectById(albumInfo.getSingerId()).getSingerName();
+        albumVo.setSingerName(singerName);
+        String typeName = typeInfoMapper.selectById(albumInfo.getTypeId()).getTypeName();
+        albumVo.setTypeName(typeName);
+        return albumVo;
     }
 }

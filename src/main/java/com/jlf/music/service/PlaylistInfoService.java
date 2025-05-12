@@ -6,8 +6,10 @@ import com.jlf.music.common.PageRequest;
 import com.jlf.music.controller.dto.EditPlaylistDTO;
 import com.jlf.music.controller.dto.PlaylistDetailDTO;
 import com.jlf.music.controller.dto.PlaylistFormDTO;
+import com.jlf.music.controller.qry.PlaylistCollectQry;
 import com.jlf.music.controller.qry.PlaylistPageQry;
 import com.jlf.music.controller.vo.PlaylistBasicInfoVo;
+import com.jlf.music.controller.vo.SimpleItemVo;
 import com.jlf.music.entity.PlaylistInfo;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -25,21 +27,21 @@ public interface PlaylistInfoService extends IService<PlaylistInfo> {
     /**
      * 添加歌曲到歌单中
      *
-     * @param id      歌单ID
+     * @param playlistId      歌单ID
      * @param songIds 歌曲ID列表
      * @return Boolean
      */
-    Boolean addSongsToPlaylist(Long id, List<Long> songIds);
+    Boolean addSongsToPlaylist(Long playlistId, List<Long> songIds);
 
     /**
      * 编辑歌单属性
      *
-     * @param id              歌单id
+     * @param playlistId              歌单id
      * @param editPlaylistDTO 编辑的值
      * @param playlistCover   歌单封面图
      * @return Boolean
      */
-    Boolean editPlaylistProperties(Long id, EditPlaylistDTO editPlaylistDTO, MultipartFile playlistCover);
+    Boolean editPlaylistProperties(Long playlistId, EditPlaylistDTO editPlaylistDTO, MultipartFile playlistCover);
 
     /**
      * 分页查询歌单列表
@@ -93,5 +95,27 @@ public interface PlaylistInfoService extends IService<PlaylistInfo> {
      * 获取管理端歌单详情
      *
      */
-    PlaylistBasicInfoVo getAdminPlaylistDetailById(Long playlistId);
+    PlaylistBasicInfoVo getAdminPlaylistDetail(Long playlistId);
+
+    /**
+     * 删除歌单
+     */
+    Boolean deletePlaylist(Long playlistId);
+
+    /**
+     * 从歌单中移除歌曲
+     * @param playlistId 歌单id
+     * @param songIds 歌曲id
+     * @return boolean
+     */
+    Boolean removeSongsFromPlaylist(Long playlistId, List<Long> songIds);
+
+    /**
+     * 获取用户收藏列表
+     */
+    IPage<SimpleItemVo> getPlaylistCollectByUserId(Long userId, PlaylistCollectQry playlistCollectQry);
+    /**
+     * 获取用户个人创建的歌单列表
+     */
+    IPage<PlaylistBasicInfoVo> getPlaylistsMine(PageRequest pageRequest);
 }
