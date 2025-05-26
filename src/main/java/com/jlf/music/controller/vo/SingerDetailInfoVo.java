@@ -33,6 +33,10 @@ public class SingerDetailInfoVo {
      */
     private Long followerCount;
     /**
+     * 用户是否关注该歌手
+     */
+    private Boolean isFollowed;
+    /**
      * 热门歌曲列表
      */
     private List<SongBasicInfoVo> songs;

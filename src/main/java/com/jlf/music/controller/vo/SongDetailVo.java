@@ -22,6 +22,10 @@ import java.util.Date;
 @AllArgsConstructor
 public class SongDetailVo {
     /**
+     * 请求的用户是否已收藏该歌曲
+     */
+    private Boolean isFavorite;
+    /**
      * 歌曲ID
      */
     private Long songId;

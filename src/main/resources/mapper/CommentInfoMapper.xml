@@ -19,7 +19,7 @@
           AND ci.target_id = #{targetId}
           AND ci.level = 1
           and ci.delete_flag = 0
-        ORDER BY ci.like_count DESC
+        ORDER BY ci.create_time DESC
     </select>
     <!-- 查询指定父评论下的子评论 -->
     <select id="selectChildComments" resultType="com.jlf.music.controller.vo.CommentTreeVo">
@@ -35,6 +35,6 @@
              sys_user su ON ci.user_id = su.user_id and su.delete_flag = 0
         WHERE ci.parent_comment_id = #{parentCommentId}
           AND ci.delete_flag = 0
-        ORDER BY ci.like_count DESC
+        ORDER BY ci.create_time DESC
     </select>
 </mapper>

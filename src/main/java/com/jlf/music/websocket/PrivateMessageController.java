@@ -16,34 +16,6 @@ import java.util.List;
 public class PrivateMessageController {
     @Resource
     private PrivateMessageService privateMessageService;
-    @Resource
-    private CustomWebSocketHandler webSocketHandler;
-
-    /**
-     * 发送私聊消息接口。
-     * 从安全工具中获取当前发送者的用户ID，将其设置到消息实体中，
-     * 接着把消息保存到数据库，最后通过WebSocket实时推送给接收者。
-     *
-     * @param message 包含消息内容、接收者ID等信息的私聊消息实体
-     * @return 操作结果，成功时返回包含成功信息的Result对象
-     */
-    /*@PostMapping
-    public Result<String> sendMessage(@RequestBody PrivateMessage message) {
-        Long senderId = SecurityUtils.getUserId();
-
-        message.setSenderId(senderId);
-        // 保存消息到数据库
-        privateMessageService.saveMessage(senderId, message.getReceiverId(), message.getContent(), message.getMessageType());
-
-        // 实时推送消息
-        webSocketHandler.sendMessageToUser(
-                message.getReceiverId(),
-                message.getContent()
-        );
-
-        return Result.success();
-    }*/
-
 
     /**
      * 获取与指定用户的会话消息
@@ -70,7 +42,7 @@ public class PrivateMessageController {
      */
     @GetMapping("/users")
     public Result<List<PrivateMessageUserVo>> getUsers() {
-        return Result.success(privateMessageService.getPrivateMessageUsers(SecurityUtils.getUserId()));
+        return Result.success(privateMessageService.getUsersWithMessageHistory(SecurityUtils.getUserId()));
     }
 
     /**

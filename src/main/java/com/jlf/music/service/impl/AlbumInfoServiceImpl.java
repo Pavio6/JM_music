@@ -18,6 +18,7 @@ import com.jlf.music.service.AlbumInfoService;
 import com.jlf.music.service.FileService;
 import com.jlf.music.service.SongInfoService;
 import com.jlf.music.utils.CopyUtils;
+import com.jlf.music.utils.SecurityUtils;
 import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -165,10 +166,16 @@ public class AlbumInfoServiceImpl extends ServiceImpl<AlbumInfoMapper, AlbumInfo
         List<SongBasicInfoVo> albumWithSongs = getAlbumWithSongs(albumId);
         AlbumVo albumVo = CopyUtils.classCopy(albumInfo, AlbumVo.class);
         albumVo.setSongs(albumWithSongs);
-        String singerName = singerInfoMapper.selectById(albumInfo.getSingerId()).getSingerName();
-        albumVo.setSingerName(singerName);
+        SingerInfo singerInfo = singerInfoMapper.selectById(albumInfo.getSingerId());
+        albumVo.setSingerName(singerInfo.getSingerName());
+        albumVo.setSingerAvatar(singerInfo.getSingerAvatar());
         String typeName = typeInfoMapper.selectById(albumInfo.getTypeId()).getTypeName();
         albumVo.setTypeName(typeName);
+        // 用户是否收藏了该专辑
+        albumVo.setIsFavorite(userFavoriteMapper.selectOne(new LambdaQueryWrapper<UserFavorite>()
+                .eq(UserFavorite::getTargetType, TargetType.ALBUM.getValue())
+                .eq(UserFavorite::getUserId, SecurityUtils.getUserId())
+                .eq(UserFavorite::getTargetId, albumId)) != null);
         return albumVo;
     }
 }

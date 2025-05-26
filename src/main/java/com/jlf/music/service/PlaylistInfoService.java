@@ -118,4 +118,12 @@ public interface PlaylistInfoService extends IService<PlaylistInfo> {
      * 获取用户个人创建的歌单列表
      */
     IPage<PlaylistBasicInfoVo> getPlaylistsMine(PageRequest pageRequest);
+
+    /**
+     * 删除歌单 (用户个人创建的)
+     * @param playlistId 歌单id
+     * @return boolean
+     */
+    Boolean deleteMinePlaylist(Long playlistId);
+
 }

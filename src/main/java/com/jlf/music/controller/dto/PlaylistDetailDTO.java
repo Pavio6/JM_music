@@ -27,6 +27,10 @@ public class PlaylistDetailDTO {
      */
     private String userName;
     /**
+     * 创建者头像
+     */
+    private String userAvatar;
+    /**
      * 标签名称列表
      */
     private List<String> tagName;

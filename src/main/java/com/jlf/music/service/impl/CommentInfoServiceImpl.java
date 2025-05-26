@@ -3,6 +3,7 @@ package com.jlf.music.service.impl;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -12,19 +13,26 @@ import com.jlf.music.controller.dto.CommentDTO;
 import com.jlf.music.controller.qry.CommentQry;
 import com.jlf.music.controller.vo.CommentTreeVo;
 import com.jlf.music.entity.CommentInfo;
+import com.jlf.music.entity.UserCommentLike;
 import com.jlf.music.exception.ServiceException;
 import com.jlf.music.mapper.*;
 import com.jlf.music.service.CommentInfoService;
 import com.jlf.music.utils.SecurityUtils;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
-import static com.jlf.music.common.constant.RedisConstant.COMMENT_LIKED_KEY_PREFIX;
+import static java.util.Arrays.stream;
 
+@Slf4j
 @Service
 public class CommentInfoServiceImpl extends ServiceImpl<CommentInfoMapper, CommentInfo>
         implements CommentInfoService {
@@ -40,6 +48,8 @@ public class CommentInfoServiceImpl extends ServiceImpl<CommentInfoMapper, Comme
     private SongMvMapper songMvMapper;
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+    @Resource
+    private UserCommentLikeMapper userCommentLikeMapper;
 
     /**
      * 添加评论
@@ -56,7 +66,21 @@ public class CommentInfoServiceImpl extends ServiceImpl<CommentInfoMapper, Comme
         }
         // 检查是否包含敏感词
         if (SensitiveWordHelper.contains(commentDTO.getContent())) {
-            throw new ServiceException("评论中包含敏感词");
+            List<String> sensitiveWords = SensitiveWordHelper.findAll(commentDTO.getContent());
+            int sensitiveLength = sensitiveWords.stream()
+                    .mapToInt(String::length)
+                    .sum();
+            // 如果敏感词字数大于总评论字数的一半 则返回报错信息
+            if (sensitiveLength * 2 > commentDTO.getContent().length()) {
+                log.info("评论信息为: {}", commentDTO.getContent());
+                log.info("评论中的敏感词有: {}", sensitiveWords);
+                log.info("评论中的敏感词字数有: {} 个", sensitiveLength);
+                throw new ServiceException("请文明用语!");
+            } else {
+                // 将敏感词替换成 *
+                String updatedContent = SensitiveWordHelper.replace(commentDTO.getContent());
+                commentDTO.setContent(updatedContent);
+            }
         }
         CommentInfo commentInfo = new CommentInfo();
         // 判断评论类型并校验
@@ -114,7 +138,7 @@ public class CommentInfoServiceImpl extends ServiceImpl<CommentInfoMapper, Comme
      * @return List<SongCommentTreeVo>
      */
     @Override
-    public IPage<List<CommentTreeVo>> getComments(CommentQry commentQry) {
+    public IPage<CommentTreeVo> getComments(CommentQry commentQry) {
         // 获取类型value
         Integer targetType = commentQry.getTargetType().getValue();
         if (targetType == null) {
@@ -124,18 +148,49 @@ public class CommentInfoServiceImpl extends ServiceImpl<CommentInfoMapper, Comme
         Page<CommentInfo> page = new Page<>(commentQry.getPageNum(), commentQry.getPageSize());
         // 分页查询顶级评论
         IPage<CommentTreeVo> topLevelCommentsPage = commentInfoMapper.selectTopLevelComments(page, targetType, commentQry.getTargetId());
-
         // 获取所有顶级评论
         List<CommentTreeVo> topLevelComments = topLevelCommentsPage.getRecords();
         // 循环所有顶级评论 设置子评论
         for (CommentTreeVo topLevelComment : topLevelComments) {
             topLevelComment.setChildren(getChildComments(topLevelComment.getCommentId()));
         }
-
+        // 如果没有评论 直接返回空
+        if (topLevelComments.isEmpty()) {
+            return topLevelCommentsPage;
+        }
+        // 提取整棵树的commentId 并设置isLike字段的值
+        List<Long> allCommentIds = extractAllCommentIds(topLevelComments);
+        // 查询用户对这些 commentId 的点赞记录
+        Long userId = SecurityUtils.getUserId();
+        List<Long> likedCommentIds = userCommentLikeMapper.selectList(new LambdaQueryWrapper<UserCommentLike>()
+                        .eq(UserCommentLike::getUserId, userId)
+                        .in(UserCommentLike::getCommentId, allCommentIds)
+                        .select(UserCommentLike::getCommentId))
+                .stream()
+                .map(UserCommentLike::getCommentId)
+                .toList();
+        // 将点赞的commentId存储在set集合中
+        Set<Long> likedSet = new HashSet<>(likedCommentIds);
+        // 递归设置每条评论的 isLike 状态
+        for (CommentTreeVo comment : topLevelComments) {
+            setLikeStatusRecursive(comment, likedSet);
+        }
         // 封装结果
-        IPage<List<CommentTreeVo>> resultPage = new Page<>(topLevelCommentsPage.getCurrent(), topLevelCommentsPage.getSize(), topLevelCommentsPage.getTotal());
-        resultPage.setRecords(List.of(topLevelComments));
+        IPage<CommentTreeVo> resultPage = new Page<>(topLevelCommentsPage.getCurrent(), topLevelCommentsPage.getSize(), topLevelCommentsPage.getTotal());
+        resultPage.setRecords(topLevelComments);
         return resultPage;
+    }
+
+    /**
+     * 递归设置isLike
+     */
+    private void setLikeStatusRecursive(CommentTreeVo comment, Set<Long> likedSet) {
+        comment.setIsLike(likedSet.contains(comment.getCommentId()));
+        if (comment.getChildren() != null) {
+            for (CommentTreeVo child : comment.getChildren()) {
+                setLikeStatusRecursive(child, likedSet);
+            }
+        }
     }
 
     /**
@@ -153,14 +208,30 @@ public class CommentInfoServiceImpl extends ServiceImpl<CommentInfoMapper, Comme
     }
 
     /**
+     * 获取整个数的commentId
+     */
+    private List<Long> extractAllCommentIds(List<CommentTreeVo> comments) {
+        List<Long> ids = new ArrayList<>();
+        for (CommentTreeVo comment : comments) {
+            ids.add(comment.getCommentId());
+            if (comment.getChildren() != null && !comment.getChildren().isEmpty()) {
+                ids.addAll(extractAllCommentIds(comment.getChildren()));
+            }
+        }
+        return ids;
+    }
+
+    /**
      * 点赞评论
      *
      * @param commentId 评论id
+     * @param isLike    是否喜欢
      * @return void
      */
     @Override
-    public Boolean likeComment(Long commentId) {
-        // 获取用户id
+    @Transactional
+    public Boolean likeComment(Long commentId, Boolean isLike) {
+        /*// 获取用户id
         Long userId = SecurityUtils.getUserId();
         String key = COMMENT_LIKED_KEY_PREFIX + commentId;
         // ZSet有序集合 每个成员都有一个分数
@@ -179,6 +250,23 @@ public class CommentInfoServiceImpl extends ServiceImpl<CommentInfoMapper, Comme
             updateLikeCount(commentId, -1);
             // 2. 将用户ID从Redis的Sorted Set中移除
             stringRedisTemplate.opsForZSet().remove(key, userId.toString());
+        }*/
+        Long userId = SecurityUtils.getUserId();
+        UserCommentLike userCommentLike = new UserCommentLike()
+                .setCommentId(commentId)
+                .setUserId(userId);
+        if (isLike) {
+            userCommentLikeMapper.insert(userCommentLike);
+            commentInfoMapper.update(new LambdaUpdateWrapper<CommentInfo>()
+                    .eq(CommentInfo::getCommentId, commentId)
+                    .setSql("like_count = like_count + 1"));
+        } else {
+            userCommentLikeMapper.delete(new LambdaQueryWrapper<UserCommentLike>()
+                    .eq(UserCommentLike::getCommentId, commentId)
+                    .eq(UserCommentLike::getUserId, userId));
+            commentInfoMapper.update(new LambdaUpdateWrapper<CommentInfo>()
+                    .eq(CommentInfo::getCommentId, commentId)
+                    .setSql("like_count = like_count - 1"));
         }
         return true;
     }
@@ -205,5 +293,32 @@ public class CommentInfoServiceImpl extends ServiceImpl<CommentInfoMapper, Comme
         comment.setLikeCount(newLikes);
         return commentInfoMapper.updateById(comment) > 0;
     }
+
+    /**
+     * 更新isLike字段的值
+     */
+    /*public List<CommentTreeVo> batchSetIsLikeWithStream(List<CommentTreeVo> commentList, Long userId) {
+        if (commentList == null || commentList.isEmpty() || userId == null) {
+            return commentList;
+        }
+        // 提取所有 commentId
+        List<Long> commentIds = commentList.stream()
+                .map(CommentTreeVo::getCommentId)
+                .distinct()
+                .collect(Collectors.toList());
+        // 查询用户点赞过的评论ID列表
+        List<Long> likedCommentIds = userCommentLikeMapper.selectList(new LambdaQueryWrapper<UserCommentLike>()
+                        .eq(UserCommentLike::getUserId, userId)
+                        .in(UserCommentLike::getCommentId, commentIds)
+                        .select(UserCommentLike::getCommentId))
+                .stream()
+                .map(UserCommentLike::getCommentId)
+                .toList();
+        Set<Long> likedSet = new HashSet<>(likedCommentIds);
+        // 使用 stream map 修改每条评论的 isLike 状态
+        return commentList.stream()
+                .peek(comment -> comment.setIsLike(likedSet.contains(comment.getCommentId()))) // 检查每条comment的commentId是否存在与likeSet中
+                .collect(Collectors.toList());
+    }*/
 }
 

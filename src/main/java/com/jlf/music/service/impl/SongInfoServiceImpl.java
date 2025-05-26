@@ -21,6 +21,7 @@ import com.jlf.music.service.FileService;
 import com.jlf.music.service.SongInfoService;
 import com.jlf.music.utils.CopyUtils;
 import com.jlf.music.utils.MinIOPathParser;
+import com.jlf.music.utils.SecurityUtils;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,7 +53,7 @@ import static com.jlf.music.common.constant.RedisConstant.*;
 public class SongInfoServiceImpl extends ServiceImpl<SongInfoMapper, SongInfo>
         implements SongInfoService {
     private static final Integer SONG_LIMIT = 50;
-    private static final int MAX_WEEKS_TO_CHECK = 4; // 最大扩展时间范围（周）
+    private static final int DAYS_TO_CHECK = 30; // 查询最近 30 天的数据
     @Resource
     private ObjectMapper objectMapper;
     @Resource
@@ -69,11 +70,11 @@ public class SongInfoServiceImpl extends ServiceImpl<SongInfoMapper, SongInfo>
     private PlaylistInfoMapper playlistInfoMapper;
     @Resource
     private SongMvMapper songMvMapper;
-    @Autowired
+    @Resource
     private PlaylistSongMapper playlistSongMapper;
-    @Autowired
+    @Resource
     private UserFavoriteMapper userFavoriteMapper;
-    @Autowired
+    @Resource
     private PlayQueueDetailMapper playQueueDetailMapper;
 
     /**
@@ -84,7 +85,7 @@ public class SongInfoServiceImpl extends ServiceImpl<SongInfoMapper, SongInfo>
      */
     @Override
     public IPage<SongBasicInfoVo> getSongsByPage(SongQry songQry) {
-        IPage<SongBasicInfoVo> page = new Page<>(songQry.getPageNum(), songQry.getPageSize());
+        IPage<SongBasicInfoVo> page = new Page<>(songQry.getPageNum(), 100);
         return songInfoMapper.getSongsByPage(page, songQry);
     }
 
@@ -151,34 +152,18 @@ public class SongInfoServiceImpl extends ServiceImpl<SongInfoMapper, SongInfo>
         // 尝试从缓存中获取
         String cacheData = stringRedisTemplate.opsForValue().get(NEW_SONGS_CACHE_KEY);
         if (StringUtils.hasText(cacheData)) {
-            // 反序列化缓存中的数据
             return deserializeSongs(cacheData);
         }
-        // 定义时间范围和步长
         LocalDate now = LocalDate.now();
-        int weeksToCheck = 1; // 初始查询上周的数据
-        List<SongBasicInfoVo> newSongs;
-        do {
-            // 计算查询的时间范围
-            // minusWeeks 方法表示从当前日期减去指定的周数
-            LocalDate startDate = now.minusWeeks(weeksToCheck);
-            LocalDate endDate = now.minusWeeks(weeksToCheck - 1);
-            // 查询数据库
-            newSongs = queryNewSongsFromDB(startDate, endDate);
-            // 如果查询到数据，或者达到最大时间范围，退出循环
-            if (!newSongs.isEmpty() || weeksToCheck >= MAX_WEEKS_TO_CHECK) {
-                break;
-            }
-            // 扩大时间范围
-            weeksToCheck++;
-        } while (true);
-        // 如果最终没有查询到数据，返回默认推荐列表
-        if (newSongs.isEmpty()) {
-            return null;
+        LocalDate thirtyDaysAgo = now.minusDays(DAYS_TO_CHECK);
+        // 直接查询最近 30 天的新歌数据
+        List<SongBasicInfoVo> newSongs = queryNewSongsFromDB(thirtyDaysAgo, now);
+
+        if (newSongs == null || newSongs.isEmpty()) {
+            return Collections.emptyList();
         }
-        // 异步更新缓存
-        List<SongBasicInfoVo> finalNewSongs = newSongs;
-        CompletableFuture.runAsync(() -> updateCache(finalNewSongs, NEW_SONGS_CACHE_KEY));
+        // 同步更新缓存
+        updateCache(newSongs, NEW_SONGS_CACHE_KEY);
         return newSongs;
     }
 
@@ -284,6 +269,15 @@ public class SongInfoServiceImpl extends ServiceImpl<SongInfoMapper, SongInfo>
         CopyUtils.classCopy(songInfo, songDetailVo);
         String albumName = albumInfoMapper.selectById(songInfo.getAlbumId()).getAlbumName();
         String singerName = singerInfoMapper.selectById(songInfo.getSingerId()).getSingerName();
+        Long userId = SecurityUtils.getUserId();
+        if (userFavoriteMapper.selectOne(new LambdaQueryWrapper<UserFavorite>()
+                .eq(UserFavorite::getUserId, userId)
+                .eq(UserFavorite::getTargetType, TargetType.SONG.getValue())
+                .eq(UserFavorite::getTargetId, songId)) != null) {
+            songDetailVo.setIsFavorite(true);
+        } else {
+            songDetailVo.setIsFavorite(false);
+        }
         return songDetailVo.setAlbumName(albumName)
                 .setSingerName(singerName);
 
@@ -430,10 +424,10 @@ public class SongInfoServiceImpl extends ServiceImpl<SongInfoMapper, SongInfo>
     }
 
     /**
-     * 查询数据库获取新歌 (最近7天, 默认50条)
+     * 查询数据库获取新歌
      */
     private List<SongBasicInfoVo> queryNewSongsFromDB(LocalDate startDate, LocalDate endDate) {
-        // 获取七天前的日期
+        // 最近一个月的新歌列表
         return songInfoMapper.selectNewSongs(startDate, endDate);
     }
 

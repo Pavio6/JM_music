@@ -18,7 +18,9 @@ public interface CommentInfoMapper extends BaseMapper<CommentInfo> {
      * @param targetId 目标 id
      * @return 分页后的顶级评论列表
      */
-    IPage<CommentTreeVo> selectTopLevelComments(IPage<CommentInfo> page, @Param("targetType") Integer targetType, @Param("targetId") Long targetId);
+    IPage<CommentTreeVo> selectTopLevelComments(IPage<CommentInfo> page,
+                                                @Param("targetType") Integer targetType,
+                                                @Param("targetId") Long targetId);
 
     /**
      * 查询指定父评论下的子评论

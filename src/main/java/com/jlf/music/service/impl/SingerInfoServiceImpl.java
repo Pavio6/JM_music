@@ -18,6 +18,7 @@ import com.jlf.music.mapper.*;
 import com.jlf.music.service.FileService;
 import com.jlf.music.service.SingerInfoService;
 import com.jlf.music.utils.CopyUtils;
+import com.jlf.music.utils.SecurityUtils;
 import jakarta.annotation.Resource;
 import org.apache.tomcat.util.net.ServletConnectionImpl;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -106,7 +107,7 @@ public class SingerInfoServiceImpl extends ServiceImpl<SingerInfoMapper, SingerI
         vo.setRegionName(regionName);
         // 获取歌手粉丝数量
         // 从redis中查找
-        String count = stringRedisTemplate.opsForValue().get(FOLLOWERS_COUNT + singerId);
+        /*String count = stringRedisTemplate.opsForValue().get(FOLLOWERS_COUNT + singerId);
         // 命中
         if (count != null) {
             vo.setFollowerCount(Long.parseLong(count));
@@ -124,13 +125,28 @@ public class SingerInfoServiceImpl extends ServiceImpl<SingerInfoMapper, SingerI
             // 有效期30分钟
             stringRedisTemplate.expire(FOLLOWERS_COUNT + singerId, 30, TimeUnit.MINUTES);
             vo.setFollowerCount(newCount);
-        }
+        }*/
         // 获取歌手的热门歌曲
         List<SongBasicInfoVo> songBasicInfoVos = searchBySingerId(singerId);
         vo.setSongs(songBasicInfoVos);
         // 获取歌手的热门专辑
         List<AlbumSearchVo> albumSearchVos = searchAlbumBySingerId(singerId);
         vo.setAlbums(albumSearchVos);
+        // 用户是否已关注该歌手
+        Long userId = SecurityUtils.getUserId();
+        vo.setIsFollowed(userFollowMapper.selectOne(new LambdaQueryWrapper<UserFollow>()
+                .eq(UserFollow::getFollowerId, userId)
+                .eq(UserFollow::getFollowedId, singerId)
+                .eq(UserFollow::getFollowType, FollowTargetType.SINGER.getValue())) != null);
+        // 歌手的粉丝数
+        Long count = userFollowMapper.selectCount(new LambdaQueryWrapper<UserFollow>()
+                .eq(UserFollow::getFollowType, FollowTargetType.SINGER.getValue())
+                .eq(UserFollow::getFollowedId, singerId));
+        if (count.equals(0L)) {
+            vo.setFollowerCount(0L);
+        } else {
+            vo.setFollowerCount(count);
+        }
         return vo;
     }
 

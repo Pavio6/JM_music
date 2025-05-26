@@ -67,6 +67,8 @@ public class SecurityConfig {
                         // 允许WebSocket端点访问
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/common/captcha/get").permitAll()
+                        // 首页获取歌手、歌单、轮播图的接口 无需认证
+                        .requestMatchers("/api/user/singer/page", "/api/user/playlist/page", "/api/user/carousel/list").permitAll()
                         // 管理员专属接口
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         // 用户和管理员共享接口

@@ -44,7 +44,7 @@ public class UserFavoriteServiceImpl extends ServiceImpl<UserFavoriteMapper, Use
         Long userId = SecurityUtils.getUserId();
         // 根据收藏类型获取redis存储的key prefix
         String favoriteKeyPrefix = getFavoriteKeyPrefix(favoriteType);
-        // 用户收藏的 的key
+        // 用户收藏的key
         String favoriteKey = favoriteKeyPrefix + userId;
         // 收藏/喜欢
         if (isFavorite) {

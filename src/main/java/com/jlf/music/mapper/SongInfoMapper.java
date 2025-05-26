@@ -86,4 +86,9 @@ public interface SongInfoMapper extends BaseMapper<SongInfo> {
      * 根据歌手id获取热门歌曲列表
      */
     List<SongBasicInfoVo> selectTopSongsBySingerId(@Param("singerId") Long singerId);
+
+    /**
+     * 获取song详情
+     */
+    List<SongBasicInfoVo> getSongBasicInfoByIds(@Param("songIds") List<Long> songIds);
 }

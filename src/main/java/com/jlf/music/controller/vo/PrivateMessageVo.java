@@ -41,7 +41,7 @@ public class PrivateMessageVo {
     private MessageType messageType;
 
     /**
-     * 消息状态（可以根据业务需要转换为更具可读性的描述）
+     * 消息状态
      */
     private Integer status;
 

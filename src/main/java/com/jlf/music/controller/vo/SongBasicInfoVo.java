@@ -39,6 +39,10 @@ public class SongBasicInfoVo implements Serializable {
      */
     private String singerName;
     /**
+     * 歌手头像
+     */
+    private String singerAvatar;
+    /**
      * 专辑id
      */
     private Long albumId;

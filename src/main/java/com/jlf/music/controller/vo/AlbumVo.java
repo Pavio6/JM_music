@@ -32,6 +32,11 @@ public class AlbumVo {
     private String typeName;
     private Long singerId;
     private String singerName;
+    private String singerAvatar;
+    /**
+     * 用户是否收藏了该专辑
+     */
+    private Boolean isFavorite;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
     private List<SongBasicInfoVo> songs;

@@ -1,7 +1,9 @@
 package com.jlf.music.controller.web.user;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.jlf.music.common.Result;
 import com.jlf.music.common.enumerate.TargetType;
+import com.jlf.music.controller.qry.SongQry;
 import com.jlf.music.controller.vo.SongBasicInfoVo;
 import com.jlf.music.controller.vo.SongDetailVo;
 import com.jlf.music.controller.vo.SongLyricsAndAudioVo;
@@ -103,5 +105,14 @@ public class UserSongController {
             throw new ServiceException("歌曲不存在");
         }
         return Result.success(songInfoService.getSongDetail(songId));
+    }
+
+    /**
+     * 获取歌曲列表 - (用户编辑歌单 添加歌曲时)
+     */
+    @GetMapping("/list")
+    public Result<List<SongBasicInfoVo>> getSongList(SongQry songQry) {
+        IPage<SongBasicInfoVo> songsByPage = songInfoService.getSongsByPage(songQry);
+        return Result.success(songsByPage.getRecords());
     }
 }

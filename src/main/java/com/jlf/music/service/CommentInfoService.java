@@ -8,8 +8,6 @@ import com.jlf.music.controller.qry.CommentQry;
 import com.jlf.music.controller.vo.CommentTreeVo;
 import com.jlf.music.entity.CommentInfo;
 
-import java.util.List;
-
 public interface CommentInfoService extends IService<CommentInfo> {
 
     /**
@@ -26,14 +24,15 @@ public interface CommentInfoService extends IService<CommentInfo> {
      * @param commentQry 分页和请求参数
      * @return List<SongCommentTreeVo>
      */
-    IPage<List<CommentTreeVo>> getComments(CommentQry commentQry);
+    IPage<CommentTreeVo> getComments(CommentQry commentQry);
 
     /**
      * 点赞评论
      *
      * @param commentId 评论id
+     * @param isLike 是否喜欢
      * @return void
      */
-    Boolean likeComment(Long commentId);
+    Boolean likeComment(Long commentId, Boolean isLike);
 
 }

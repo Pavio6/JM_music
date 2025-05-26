@@ -43,6 +43,10 @@ public class CommentTreeVo {
      */
     private Integer likeCount;
     /**
+     * 该用户是否点赞了该评论
+     */
+    private Boolean isLike;
+    /**
      * 二级三级评论列表
      */
     private List<CommentTreeVo> children;

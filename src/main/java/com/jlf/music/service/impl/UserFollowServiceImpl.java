@@ -30,6 +30,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 import static com.jlf.music.common.constant.RedisConstant.*;
 
@@ -112,7 +113,7 @@ public class UserFollowServiceImpl extends ServiceImpl<UserFollowMapper, UserFol
      */
     @Override
     public FollowStatsVo getFollowAndFollowerCount(Long userId) {
-        String followUserKey = getFollowKeyPrefix(FollowTargetType.USER) + userId;
+        /*String followUserKey = getFollowKeyPrefix(FollowTargetType.USER) + userId;
         String followSingerKey = getFollowKeyPrefix(FollowTargetType.SINGER) + userId;
         String userFollowerKey = getFollowersKeyPrefix(FollowTargetType.USER) + userId;
         // 用户关注的用户数量
@@ -127,10 +128,14 @@ public class UserFollowServiceImpl extends ServiceImpl<UserFollowMapper, UserFol
         }
         if (followSingerCount == null) {
             throw new NullPointerException("用户关注歌手数为null");
-        }
+        }*/
+        Long followCount = userFollowMapper.selectCount(new LambdaQueryWrapper<UserFollow>()
+                .eq(UserFollow::getFollowerId, userId));
+        Long followerCount = userFollowMapper.selectCount(new LambdaQueryWrapper<UserFollow>()
+                .eq(UserFollow::getFollowedId, userId));
         // 封装返回对象
         return new FollowStatsVo()
-                .setFollowCount(followUserCount + followSingerCount)
+                .setFollowCount(followCount)
                 .setFollowerCount(followerCount);
     }
 

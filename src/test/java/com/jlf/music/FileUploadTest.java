@@ -83,6 +83,9 @@ public class FileUploadTest {
         System.out.println("s = " + s);
     }
 
+    /**
+     * 上传歌曲mv
+     */
     @Test
     public void uploadSongMV() throws Exception {
         // 1. 读取本地的 MP4 文件
@@ -179,6 +182,24 @@ public class FileUploadTest {
                 fileInputStream
         );
         String s = fileService.uploadImageFile(mockMultipartFile, UploadFileType.USER_AVATAR);
+        System.out.println("s = " + s);
+        System.out.println("s = " + s);
+    }
+
+    /**
+     * 上传轮播图
+     */
+    @Test
+    public void uploadCarousel() throws IOException {
+        File file = new File("C:\\Users\\93198\\Desktop\\music-3.jpg");
+        FileInputStream fileInputStream = new FileInputStream(file);
+        MultipartFile mockMultipartFile = new MockMultipartFile(
+                file.getName(),
+                file.getName(),
+                "image/jpeg",
+                fileInputStream
+        );
+        String s = fileService.uploadImageFile(mockMultipartFile, UploadFileType.CAROUSEL_IMAGE);
         System.out.println("s = " + s);
         System.out.println("s = " + s);
     }

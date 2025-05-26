@@ -1,11 +1,13 @@
 package com.jlf.music.controller.vo;
 
+import com.jlf.music.common.enumerate.MessageType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 
 import java.time.LocalDateTime;
+
 @NoArgsConstructor
 @AllArgsConstructor
 @Accessors(chain = true)
@@ -25,6 +27,10 @@ public class PrivateMessageUserVo {
      * 对方用户头像URL
      */
     private String otherUserAvatar;
+    /**
+     * 最后一条消息的消息类型
+     */
+    private MessageType messageType;
 
     /**
      * 最后一条消息内容摘要

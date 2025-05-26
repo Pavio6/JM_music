@@ -9,10 +9,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.jlf.music.common.PageRequest;
-import com.jlf.music.common.enumerate.CreatorType;
-import com.jlf.music.common.enumerate.TagType;
-import com.jlf.music.common.enumerate.TargetType;
-import com.jlf.music.common.enumerate.UploadFileType;
+import com.jlf.music.common.enumerate.*;
 import com.jlf.music.controller.dto.EditPlaylistDTO;
 import com.jlf.music.controller.dto.PlaylistDetailDTO;
 import com.jlf.music.controller.dto.PlaylistFormDTO;
@@ -21,6 +18,7 @@ import com.jlf.music.controller.qry.PlaylistPageQry;
 import com.jlf.music.controller.vo.PlaylistBasicInfoVo;
 import com.jlf.music.controller.vo.SimpleItemVo;
 import com.jlf.music.controller.vo.PlaylistSongVo;
+import com.jlf.music.controller.vo.SongBasicInfoVo;
 import com.jlf.music.entity.*;
 import com.jlf.music.exception.ServiceException;
 import com.jlf.music.mapper.*;
@@ -38,6 +36,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -69,8 +68,12 @@ public class PlaylistInfoServiceImpl extends ServiceImpl<PlaylistInfoMapper, Pla
     private PlaylistSongService playlistSongService;
     @Resource
     private UserFavoriteMapper userFavoriteMapper;
-    @Autowired
+    @Resource
     private AlbumInfoMapper albumInfoMapper;
+    @Resource
+    private SongMvMapper songMvMapper;
+    @Autowired
+    private UserFollowMapper userFollowMapper;
 
     /**
      * 创建歌单
@@ -165,7 +168,9 @@ public class PlaylistInfoServiceImpl extends ServiceImpl<PlaylistInfoMapper, Pla
                 Long userId = SecurityUtils.getUserId();
                 // 同一个用户不能创建相同名称的歌单
                 LambdaQueryWrapper<PlaylistInfo> wrapper = new LambdaQueryWrapper<>();
-                wrapper.eq(PlaylistInfo::getCreatorId, userId).eq(PlaylistInfo::getPlaylistName, playlistName);
+                wrapper.eq(PlaylistInfo::getCreatorId, userId)
+                        .eq(PlaylistInfo::getPlaylistName, playlistName)
+                        .ne(PlaylistInfo::getPlaylistId, playlistId); // 除了当前这个歌单
                 if (playlistInfoMapper.selectCount(wrapper) > 0) {
                     throw new ServiceException("歌单名已存在");
                 } else {
@@ -198,8 +203,8 @@ public class PlaylistInfoServiceImpl extends ServiceImpl<PlaylistInfoMapper, Pla
         // 标签是否为空
         if (!CollUtil.isEmpty(editPlaylistDTO.getTagIds())) {
             // 标签个数是否超过5个
-            if (editPlaylistDTO.getTagIds().size() > 5) {
-                throw new ServiceException("歌单标签最多五个");
+            if (editPlaylistDTO.getTagIds().size() > 3) {
+                throw new ServiceException("歌单标签最多三个");
             }
             List<PlaylistTags> playlistTags = playlistTagsMapper.selectList(new LambdaQueryWrapper<PlaylistTags>().eq(PlaylistTags::getPlaylistId, playlistId));
             // 如果之前歌单中有标签 则删除之前的 没有则直接添加
@@ -262,8 +267,19 @@ public class PlaylistInfoServiceImpl extends ServiceImpl<PlaylistInfoMapper, Pla
     public PlaylistDetailDTO getPlaylistDetailById(Long playlistId) {
         // 获取歌单详细信息
         PlaylistDetailDTO playlistDetail = playlistInfoMapper.findPlaylistDetail(playlistId);
-        // 判断该歌单是否被该用户收藏
+        // 如果 songs 列表包含全 null 的对象，则清空
+        if (playlistDetail.getSongs() != null) {
+            List<SongBasicInfoVo> songs = playlistDetail.getSongs();
+            if (songs.size() == 1 && songs.get(0).getSongId() == null) {
+                playlistDetail.setSongs(Collections.emptyList()); // 设置为空列表
+            }
+        }
+        // 歌单是否是用户个人创建的
         Long userId = SecurityUtils.getUserId();
+        if (playlistDetail.getUserId().equals(userId)) {
+            return playlistDetail.setIsCollected(null);
+        }
+        // 判断该歌单是否被该用户收藏
         if (userFavoriteMapper.selectOne(new LambdaQueryWrapper<UserFavorite>()
                 .eq(UserFavorite::getUserId, userId)
                 .eq(UserFavorite::getTargetType, TargetType.PLAYLIST.getValue())
@@ -536,6 +552,46 @@ public class PlaylistInfoServiceImpl extends ServiceImpl<PlaylistInfoMapper, Pla
     public IPage<PlaylistBasicInfoVo> getPlaylistsMine(PageRequest pageRequest) {
         Long userId = SecurityUtils.getUserId();
         return this.getPlaylistsByUserId(userId, pageRequest);
+    }
+
+    /**
+     * 删除歌单 (用户个人创建的)
+     *
+     * @param playlistId 歌单id
+     * @return boolean
+     */
+    @Override
+    @Transactional
+    public Boolean deleteMinePlaylist(Long playlistId) {
+        // 是否有用户收藏该歌单
+        if (userFavoriteMapper.selectCount(new LambdaQueryWrapper<UserFavorite>()
+                .eq(UserFavorite::getTargetType, TargetType.PLAYLIST.getValue())
+                .eq(UserFavorite::getTargetId, playlistId)) > 0) {
+            throw new ServiceException("歌手删除失败，有用户收藏该歌单!");
+        }
+        // 删除歌单
+        // 判断歌单中是否有歌曲
+        if (playlistSongMapper.selectCount(new LambdaQueryWrapper<PlaylistSong>()
+                .eq(PlaylistSong::getPlaylistId, playlistId)) > 0) {
+            // 删除歌单歌曲记录
+            playlistSongMapper.delete(new LambdaQueryWrapper<PlaylistSong>()
+                    .eq(PlaylistSong::getPlaylistId, playlistId));
+        }
+        // 判断歌单是否有标签信息
+        if (playlistTagsMapper.selectCount(new LambdaQueryWrapper<PlaylistTags>()
+                .eq(PlaylistTags::getPlaylistId, playlistId)) > 0) {
+            // 删除歌单标签记录
+            playlistTagsMapper.delete(new LambdaQueryWrapper<PlaylistTags>()
+                    .eq(PlaylistTags::getPlaylistId, playlistId));
+        }
+        PlaylistInfo playlistInfo = playlistInfoMapper.selectById(playlistId);
+        // 判断歌单是否有封面信息
+        if (playlistInfo.getPlaylistCover() != null) {
+            // 将封面图从minio中移除
+            fileService.deleteFile(playlistInfo.getPlaylistCover());
+        }
+        // 删除歌单记录
+        return playlistInfoMapper.deleteById(playlistId) > 0;
     }
 
 }

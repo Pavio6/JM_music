@@ -38,6 +38,7 @@ public class UserPlayQueueController {
                 .eq(SongInfo::getSongId, songId))) {
             throw new ServiceException("歌曲不存在");
         }
+
         return Result.success(playQueueService.addSongToFront(songId));
     }
 

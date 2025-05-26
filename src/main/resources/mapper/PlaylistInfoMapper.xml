@@ -16,6 +16,7 @@
         <result property="playCount" column="play_count"/>
         <result property="userId" column="user_id"/>
         <result property="userName" column="user_name"/>
+        <result property="userAvatar" column="user_avatar"/>
         <!--
         <collection> 标签：用于映射一对多的关系
         -->
@@ -49,6 +50,7 @@
         pi.play_count, # 歌单播放量
         su.user_id, # 用户id
         su.user_name, # 用户名称
+        su.user_avatar,
         ti.tag_name, # 标签名称
         si.song_id, # 歌曲id
         si.song_name, # 歌曲名称

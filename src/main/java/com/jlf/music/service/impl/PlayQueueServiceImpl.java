@@ -78,8 +78,9 @@ public class PlayQueueServiceImpl extends ServiceImpl<PlayQueueMapper, PlayQueue
         updateWrapper.eq(PlayQueue::getUserId, userId);
         // 播放队列为空
         // 直接插入记录 并返回
-        if (playQueueDetailMapper.selectList(new LambdaQueryWrapper<PlayQueueDetail>()
-                .eq(PlayQueueDetail::getQueueId, userPlayQueue.getId())).isEmpty()) {
+        List<PlayQueueDetail> playQueueDetails = playQueueDetailMapper.selectList(new LambdaQueryWrapper<PlayQueueDetail>()
+                .eq(PlayQueueDetail::getQueueId, userPlayQueue.getId()));
+        if (playQueueDetails.isEmpty()) {
             PlayQueueDetail playQueueDetail = new PlayQueueDetail()
                     .setQueueId(userPlayQueue.getId())
                     .setSongId(songId)
@@ -88,6 +89,12 @@ public class PlayQueueServiceImpl extends ServiceImpl<PlayQueueMapper, PlayQueue
             return true;
         }
         // 不为空 - 找出新歌所处的位置
+        // 判断队列中是否已有该歌曲
+        // anyMatch - 如果有任意一个元素匹配条件 就返回true
+        if (playQueueDetails.stream()
+                .anyMatch(detail -> songId.equals(detail.getSongId()))) {
+            throw new ServiceException("该用户的队列中已存在该歌曲，不能重复添加。");
+        }
         Integer insertPosition = userPlayQueue.getCurrentIndex() + 1;
         // 调整排序
         playQueueDetailMapper.update(null, new LambdaUpdateWrapper<PlayQueueDetail>()

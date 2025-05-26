@@ -1,11 +1,11 @@
 package com.jlf.music.websocket;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jlf.music.common.enumerate.MessageType;
 import com.jlf.music.entity.PrivateMessage;
 import com.jlf.music.exception.ServiceException;
-import com.jlf.music.service.FileService;
 import com.jlf.music.service.PrivateMessageService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -19,10 +19,12 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.Objects;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import static com.jlf.music.common.constant.WebSocketConstant.*;
 import static com.jlf.music.websocket.AuthHandshakeInterceptor.USER_ID_KEY;
 
 @Component
@@ -31,12 +33,11 @@ public class CustomWebSocketHandler extends TextWebSocketHandler {
 
     @Resource
     private PrivateMessageService messageService;
-    @Resource
-    private FileService fileService;
 
     // 用户ID与WebSocketSession的映射
     private static final ConcurrentMap<Long, WebSocketSession> onlineUsers = new ConcurrentHashMap<>();
-
+    // 用户之间的活跃聊天映射 记录用户当前正在与哪个用户聊天
+    private static final ConcurrentMap<Long, Long> activeChats = new ConcurrentHashMap<>();
 
     /**
      * 连接建立时触发
@@ -45,6 +46,8 @@ public class CustomWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionEstablished(@NotNull WebSocketSession session) {
         Long userId = getUserId(session);
+        log.info("userId: {} 已连接!", userId);
+
         onlineUsers.put(userId, session);
         // 通知其他用户状态的改变
         notifyUserStatus(userId, true);
@@ -61,17 +64,51 @@ public class CustomWebSocketHandler extends TextWebSocketHandler {
         Long senderId = getUserId(session);
         // 将json字符串解析为JsonNode对象
         JsonNode json = new ObjectMapper().readTree(message.getPayload());
-
-        if ("message".equals(json.get("type").asText())) {
+        if (TYPE_MESSAGE.equals(json.get("type").asText())) {
             // 处理发送消息
             handleChatMessage(senderId, json);
-        } else if ("recall".equals(json.get("type").asText())) {
+        } else if (TYPE_RECALL.equals(json.get("type").asText())) {
             // 处理撤回消息
             handleRecallMessage(senderId, json);
+        } else if (TYPE_CHAT_ACTIVE.equals(json.get("type").asText())) {
+            // 处理聊天窗口激活事件
+            handleChatActive(senderId, json);
+        } else if (TYPE_CHAT_INACTIVE.equals(json.get("type").asText())) {
+            // 处理聊天窗口关闭事件
+            handleChatInactive(senderId);
         } else {
             // 记录未知消息类型得日志
             log.warn("Received unknown message type: {}", json.get("type").asText());
         }
+    }
+
+    /**
+     * 处理聊天窗口激活事件，用户进入聊天页面
+     */
+    private void handleChatActive(Long userId, JsonNode json) {
+        Long otherUserId = json.get("otherUserId").asLong();
+        // 记录用户正在与谁聊天
+        activeChats.put(userId, otherUserId);
+        log.info("用户{}激活了与用户{}的聊天窗口", userId, otherUserId);
+        log.info("此时的-activeChats: {}", activeChats);
+    }
+
+    /**
+     * 处理聊天窗口关闭事件，用户离开聊天页面
+     */
+    private void handleChatInactive(Long userId) {
+        // 移除用户的活跃聊天记录
+        activeChats.remove(userId);
+        log.info("关闭了用户{}的聊天窗口:", userId);
+        log.info("关闭后的-activeChats: {}", activeChats);
+    }
+
+    /**
+     * 检查用户是否正在与指定用户聊天
+     */
+    private boolean isUserActivelyChattingWith(Long userId, Long otherUserId) {
+        Long activeChat = activeChats.get(userId);
+        return activeChat != null && activeChat.equals(otherUserId);
     }
 
     /**
@@ -81,18 +118,20 @@ public class CustomWebSocketHandler extends TextWebSocketHandler {
     private void handleChatMessage(Long senderId, JsonNode json) {
         // 获取接收者id
         Long receiverId = json.get("to").asLong();
-        // 解析消息类型
-//        String messageType = json.get("messageType").asText();
         // 获取内容
         String content = json.get("content").asText();
-
         // 获取内容类型
         MessageType type = MessageType.valueOf(json.get("messageType").asText());
+        // 检查接收者是否在与发送者进行活跃聊天，如果是，则消息状态为已读
+        boolean shouldMarkAsRead = isUserActivelyChattingWith(receiverId, senderId);
         // 保存消息
-        PrivateMessage privateMessage = messageService.saveMessage(senderId, receiverId, content, type);
+        PrivateMessage privateMessage = messageService.saveMessage(senderId, receiverId, content, type, shouldMarkAsRead);
         // 发送消息给双方
-        sendMessageToUser(senderId, buildMessageJson(senderId, content, type, privateMessage.getMessageId()));
-        sendMessageToUser(receiverId, buildMessageJson(senderId, content, type, privateMessage.getMessageId()));
+        sendMessageToUser(senderId, buildMessageJson(senderId, receiverId, content, type, privateMessage.getMessageId()));
+        log.info("用户 {} 发送了一条消息", senderId);
+        log.info("服务器推送消息给发送者: {}", senderId);
+        sendMessageToUser(receiverId, buildMessageJson(senderId, receiverId, content, type, privateMessage.getMessageId()));
+        log.info("服务器推送消息给接收者: {}", receiverId);
     }
 
     /**
@@ -103,7 +142,7 @@ public class CustomWebSocketHandler extends TextWebSocketHandler {
         Long messageId = json.get("messageId").asLong();
         PrivateMessage message = messageService.getById(messageId);
         if (message == null) {
-            throw new ServiceException("消息不存在");
+            return;
         } else {
             // 获取当前时间和消息创建时间
             LocalDateTime now = LocalDateTime.now();
@@ -114,19 +153,39 @@ public class CustomWebSocketHandler extends TextWebSocketHandler {
             Duration duration = Duration.between(createTime, now);
             long diffMinutes = duration.toMinutes();
             if (diffMinutes > 2) {
-                throw new ServiceException("消息已超过2分钟，无法撤回");
+                sendError(senderId, message.getReceiverId(), RECALL_MESSAGE_TIMEOUT);
+                return;
             }
         }
         // 调用撤回消息的方法
         Boolean isSuccess = messageService.recallMessage(messageId, senderId);
         if (isSuccess) {
             // 通知双方撤回
-            sendMessageToUser(message.getSenderId(), buildRecallJson(messageId));
-            sendMessageToUser(message.getReceiverId(), buildRecallJson(messageId));
+            sendMessageToUser(message.getSenderId(), buildRecallJson(message.getSenderId(), message.getReceiverId(), messageId));
+            log.info("服务器向发送者发送撤回消息: {}", message.getSenderId());
+            sendMessageToUser(message.getReceiverId(), buildRecallJson(message.getSenderId(), message.getReceiverId(), messageId));
+            log.info("服务器向接收者发送撤回消息: {}", message.getReceiverId());
         }
 
     }
 
+    /**
+     * 发送错误信息给客户端
+     */
+    private void sendError(@NotNull Long senderId, @NotNull Long receiverId, @NotNull String errorMessage) {
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("type", "recall_error");
+        errorResponse.put("message", errorMessage);
+        errorResponse.put("sender", senderId);
+        errorResponse.put("to", receiverId);
+        try {
+            String jsonResponse = mapper.writeValueAsString(errorResponse);
+            sendMessageToUser(senderId, jsonResponse);
+        } catch (JsonProcessingException e) {
+            log.error("构建错误响应失败", e);
+        }
+    }
 
     /**
      * 通知其他用户的在线状态变化 -> 前端根据用户是否在线 决定用户头像 亮起/灰色
@@ -156,16 +215,17 @@ public class CustomWebSocketHandler extends TextWebSocketHandler {
     /**
      * 构建聊天消息的JSON字符串。
      */
-    private String buildMessageJson(Long senderId, String content, MessageType type, Long messageId) {
-        return String.format("{\"type\":\"message\",\"sender\":%d,\"content\":\"%s\",\"messageType\":\"%s\",\"messageId\":\"%d\"}",
-                senderId, content, type.name(), messageId);
+    private String buildMessageJson(Long senderId, Long receiverId, String content, MessageType type, Long messageId) {
+        return String.format("{\"type\":\"message\",\"sender\":%d,\"to\":%d,\"content\":\"%s\",\"messageType\":\"%s\",\"messageId\":\"%d\"}",
+                senderId, receiverId, content, type.name(), messageId);
     }
 
     /**
      * 构建撤回消息的JSON字符串。
      */
-    private String buildRecallJson(Long messageId) {
-        return String.format("{\"type\":\"recall\",\"messageId\":%d}", messageId);
+    private String buildRecallJson(Long senderId, Long receiverId, Long messageId) {
+        return String.format("{\"type\":\"recall\",\"sender\":%d,\"to\":%d,\"messageId\":%d}",
+                senderId, receiverId, messageId);
     }
 
     /**

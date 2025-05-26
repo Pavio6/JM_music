@@ -14,21 +14,16 @@ import com.jlf.music.controller.dto.*;
 import com.jlf.music.controller.qry.FollowListQry;
 import com.jlf.music.controller.qry.UserQry;
 import com.jlf.music.controller.vo.*;
-import com.jlf.music.entity.SingerInfo;
-import com.jlf.music.entity.SysUser;
-import com.jlf.music.entity.UserFollow;
-import com.jlf.music.entity.UserPrivacy;
+import com.jlf.music.entity.*;
 import com.jlf.music.exception.ServiceException;
-import com.jlf.music.mapper.SingerInfoMapper;
-import com.jlf.music.mapper.SysUserMapper;
-import com.jlf.music.mapper.UserFollowMapper;
-import com.jlf.music.mapper.UserPrivacyMapper;
+import com.jlf.music.mapper.*;
 import com.jlf.music.security.LoginUser;
 import com.jlf.music.service.*;
 import com.jlf.music.utils.CopyUtils;
 import com.jlf.music.utils.SecurityUtils;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -75,6 +70,12 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     private UserFollowMapper userFollowMapper;
     @Resource
     private SingerInfoMapper singerInfoMapper;
+    @Resource
+    private UserFavoriteMapper userFavoriteMapper;
+    @Resource
+    private PlaylistInfoMapper playlistInfoMapper;
+    @Resource
+    private SongInfoMapper songInfoMapper;
 
     /**
      * 用户注册
@@ -282,17 +283,66 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (sysUser == null) {
             throw new ServiceException("不存在该用户");
         }
+        // 获取用户的权限信息
+        UserPrivacy userPrivacy = userPrivacyMapper.selectById(userId);
+
+        if (userPrivacy.getProfileVisibility().equals(VisibilityType.PRIVATE)) {
+            throw new ServiceException("用户个人资料不可见");
+        }
+        UserDetailInfoVo vo = new UserDetailInfoVo();
+        // 登录用户id
+        Long loginUserId = SecurityUtils.getUserId();
+        // 判断登录用户是否关注了该用户
+        vo.setIsFollowed(userFollowMapper.selectOne(new LambdaQueryWrapper<UserFollow>()
+                .eq(UserFollow::getFollowType, FollowTargetType.USER.getValue())
+                .eq(UserFollow::getFollowerId, loginUserId)
+                .eq(UserFollow::getFollowedId, userId)) != null);
+
         // 用户粉丝数和关注数
         FollowStatsVo statsVo = userFollowService.getFollowAndFollowerCount(userId);
-        // 用户喜欢的歌曲列表
-        IPage<SongBasicInfoVo> favoriteSongsList = userFavoriteService.getFavoriteSongsList(userId, new PageRequest());
-        return new UserDetailInfoVo()
+        // 获取用户喜欢的歌曲列表
+        List<UserFavorite> userFavorites = userFavoriteMapper.selectList(new LambdaQueryWrapper<UserFavorite>()
+                .eq(UserFavorite::getUserId, userId)
+                .eq(UserFavorite::getTargetType, TargetType.SONG.getValue()));
+        // 获取喜欢歌曲的id列表
+        List<Long> songIds = userFavorites.stream()
+                .map(UserFavorite::getTargetId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        List<SongBasicInfoVo> favoriteSongsList = songInfoMapper.getSongBasicInfoByIds(songIds);
+        if (userPrivacy.getPlaylistVisibility().equals(VisibilityType.PRIVATE)) {
+            vo.setFavoritePlaylistsList(null);
+        } else {
+            // 用户收藏的歌单列表
+            List<UserFavorite> userFavoritePlaylistsList = userFavoriteMapper.selectList(new LambdaQueryWrapper<UserFavorite>()
+                    .eq(UserFavorite::getUserId, userId)
+                    .eq(UserFavorite::getTargetType, TargetType.PLAYLIST.getValue()));
+            List<PlaylistSimpleInfoVo> favoritePlaylistsList = userFavoritePlaylistsList.stream()
+                    .map(userFavorite -> {
+                        Long targetId = userFavorite.getTargetId();
+                        PlaylistInfo playlist = playlistInfoMapper.selectById(targetId);
+                        PlaylistSimpleInfoVo simpleInfoVo = new PlaylistSimpleInfoVo();
+                        simpleInfoVo.setPlaylistId(playlist.getPlaylistId());
+                        simpleInfoVo.setPlaylistName(playlist.getPlaylistName());
+                        simpleInfoVo.setPlaylistCover(playlist.getPlaylistCover());
+                        return simpleInfoVo;
+                    })
+                    .toList();
+            vo.setFavoritePlaylistsList(favoritePlaylistsList);
+        }
+        // 封装返回结果并返回
+        return vo
                 .setUserId(sysUser.getUserId())
                 .setUserAvatar(sysUser.getUserAvatar())
                 .setUserBio(sysUser.getUserBio())
                 .setUserName(sysUser.getUserName())
                 .setFollowStatsVo(statsVo)
-                .setFavoriteSongsList(favoriteSongsList);
+                .setFavoriteSongsList(favoriteSongsList)
+                .setMessagePermission(userPrivacy.getMessagePermission())
+                .setFollowingVisibility(userPrivacy.getFollowingVisibility())
+                .setFollowersVisibility(userPrivacy.getFollowersVisibility())
+                .setPlaylistVisibility(userPrivacy.getPlaylistVisibility());
     }
 
     /**
@@ -417,7 +467,12 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         page = userFollowMapper.selectPage(page, wrapper);
         List<Long> followedList = page.getRecords().stream().map(UserFollow::getFollowedId).toList();
         if (CollUtil.isEmpty(followedList)) {
-            return null;
+            return new Page<SimpleItemVo>()
+                    .setCurrent(page.getCurrent())
+                    .setPages(page.getPages())
+                    .setTotal(page.getTotal())
+                    .setSize(page.getSize())
+                    .setRecords(null);
         }
         List<SimpleItemVo> list = new ArrayList<>();
         // 如果关注列表查询的是用户

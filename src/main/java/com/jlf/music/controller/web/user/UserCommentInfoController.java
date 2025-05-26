@@ -9,8 +9,6 @@ import com.jlf.music.service.CommentInfoService;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/user/comment/")
 public class UserCommentInfoController {
@@ -18,7 +16,6 @@ public class UserCommentInfoController {
     private CommentInfoService commentInfoService;
 
     /**
-     * TODO 添加前对评论信息进行敏感词分析
      * 添加评论
      *
      * @param commentDTO 评论信息
@@ -36,7 +33,7 @@ public class UserCommentInfoController {
      * @return List<SongCommentTreeVo>
      */
     @GetMapping
-    public Result<IPage<List<CommentTreeVo>>> getComments(CommentQry commentQry) {
+    public Result<IPage<CommentTreeVo>> getComments(CommentQry commentQry) {
         return Result.success(commentInfoService.getComments(commentQry));
     }
 
@@ -45,8 +42,9 @@ public class UserCommentInfoController {
      * @param commentId 评论id
      * @return void
      */
-    @PutMapping("/like/{commentId}")
-    public Result<Boolean> likeComment(@PathVariable Long commentId) {
-        return Result.success(commentInfoService.likeComment(commentId));
+    @PutMapping("/like/{commentId}/{isLike}")
+    public Result<Boolean> likeComment(@PathVariable Long commentId, @PathVariable Boolean isLike) {
+        return Result.success(commentInfoService.likeComment(commentId, isLike));
     }
+
 }

@@ -9,8 +9,13 @@ import com.jlf.music.controller.qry.PlaylistCollectQry;
 import com.jlf.music.controller.qry.PlaylistPageQry;
 import com.jlf.music.controller.vo.PlaylistBasicInfoVo;
 import com.jlf.music.controller.vo.SimpleItemVo;
+import com.jlf.music.entity.PlaylistInfo;
+import com.jlf.music.exception.ServiceException;
+import com.jlf.music.mapper.PlaylistInfoMapper;
 import com.jlf.music.service.PlaylistInfoService;
+import com.jlf.music.utils.SecurityUtils;
 import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -24,6 +29,8 @@ import java.util.List;
 public class UserPlaylistController {
     @Resource
     private PlaylistInfoService playlistInfoService;
+    @Resource
+    private PlaylistInfoMapper playlistInfoMapper;
 
     /**
      * 创建歌单
@@ -119,6 +126,7 @@ public class UserPlaylistController {
                                                                    PageRequest pageRequest) {
         return Result.success(playlistInfoService.getPlaylistsByUserId(userId, pageRequest));
     }
+
     /**
      * 获取用户个人创建的歌单列表
      */
@@ -134,6 +142,21 @@ public class UserPlaylistController {
     public Result<IPage<SimpleItemVo>> getPlaylistCollectByUserId(@PathVariable("userId") Long userId,
                                                                   PlaylistCollectQry playlistCollectQry) {
         return Result.success(playlistInfoService.getPlaylistCollectByUserId(userId, playlistCollectQry));
+    }
+
+    /**
+     * 删除歌单 (用户个人创建的)
+     */
+    @DeleteMapping("/delete/{playlistId}")
+    public Result<Boolean> deleteMinePlaylist(@PathVariable("playlistId") Long playlistId) {
+        PlaylistInfo playlistInfo = playlistInfoMapper.selectById(playlistId);
+        if (playlistInfo == null) {
+            throw new ServiceException("歌单不存在");
+        }
+        if (!playlistInfo.getCreatorId().equals(SecurityUtils.getUserId())) {
+            throw new ServiceException("用户只能删除自己创建的歌单!");
+        }
+        return Result.success(playlistInfoService.deleteMinePlaylist(playlistId));
     }
 
 }
