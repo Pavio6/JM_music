@@ -202,12 +202,12 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     public Boolean updateUser(String userName, String userEmail, String userBio, LocalDate userBirth, Integer userSex, MultipartFile userAvatar) {
         Long userId = SecurityUtils.getUserId();
         SysUser sysUser = sysUserMapper.selectById(userId);
+        
         if (sysUser == null) {
             throw new ServiceException("不存在该用户");
         }
         LambdaUpdateWrapper<SysUser> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(SysUser::getUserId, userId);
-
         // 验证并设置用户名
         if (userName != null) {
             if (userName.length() < 3 || userName.length() > 20) {
@@ -304,13 +304,18 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         List<UserFavorite> userFavorites = userFavoriteMapper.selectList(new LambdaQueryWrapper<UserFavorite>()
                 .eq(UserFavorite::getUserId, userId)
                 .eq(UserFavorite::getTargetType, TargetType.SONG.getValue()));
+        List<SongBasicInfoVo> favoriteSongsList = new ArrayList<>();
         // 获取喜欢歌曲的id列表
         List<Long> songIds = userFavorites.stream()
                 .map(UserFavorite::getTargetId)
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();
-        List<SongBasicInfoVo> favoriteSongsList = songInfoMapper.getSongBasicInfoByIds(songIds);
+        if (songIds.isEmpty()) {
+            favoriteSongsList = Collections.emptyList();
+        } else {
+            favoriteSongsList = songInfoMapper.getSongBasicInfoByIds(songIds);
+        }
         if (userPrivacy.getPlaylistVisibility().equals(VisibilityType.PRIVATE)) {
             vo.setFavoritePlaylistsList(null);
         } else {

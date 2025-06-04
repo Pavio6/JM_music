@@ -9,12 +9,15 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.jlf.music.common.Result;
 import com.jlf.music.common.enumerate.MessageStatus;
 import com.jlf.music.common.enumerate.MessageType;
+import com.jlf.music.common.enumerate.OnlineStatus;
 import com.jlf.music.controller.vo.PrivateMessageUserVo;
 import com.jlf.music.controller.vo.PrivateMessageVo;
 import com.jlf.music.entity.PrivateMessage;
 import com.jlf.music.entity.SysUser;
+import com.jlf.music.entity.UserConnection;
 import com.jlf.music.mapper.PrivateMessageMapper;
 import com.jlf.music.mapper.SysUserMapper;
+import com.jlf.music.mapper.UserConnectionMapper;
 import com.jlf.music.service.PrivateMessageService;
 import com.jlf.music.utils.CopyUtils;
 import com.jlf.music.utils.SecurityUtils;
@@ -35,6 +38,8 @@ public class PrivateMessageServiceImpl extends ServiceImpl<PrivateMessageMapper,
     private PrivateMessageMapper privateMessageMapper;
     @Resource
     private SysUserMapper sysUserMapper;
+    @Resource
+    private UserConnectionMapper userConnectionMapper;
 
     /**
      * 保存私聊消息到数据库。
@@ -162,11 +167,21 @@ public class PrivateMessageServiceImpl extends ServiceImpl<PrivateMessageMapper,
         );
 
         // 3. 为每个用户查询最后一条消息和未读消息数
-        return users.stream()
+        List<PrivateMessageUserVo> list = users.stream()
                 .map(user -> buildPrivateMessageUserVo(senderId, user))
                 .sorted(Comparator.comparing(PrivateMessageUserVo::getLastMessageTime).reversed())
-                .collect(Collectors.toList());
-//        return privateMessageMapper.findUsersWithMessageHistory(senderId);
+                .toList();
+        // 4. 查询用户的连接状态
+        for (PrivateMessageUserVo privateMessageUserVo : list) {
+            UserConnection userConnection = userConnectionMapper.selectOne(new LambdaQueryWrapper<UserConnection>()
+                    .eq(UserConnection::getUserId, privateMessageUserVo.getOtherUserId()));
+            if (userConnection == null) {
+                privateMessageUserVo.setOnline(false);
+            } else {
+                privateMessageUserVo.setOnline(userConnection.getIsOnline().equals(OnlineStatus.ONLINE.getValue()));
+            }
+        }
+        return list;
     }
 
     /**

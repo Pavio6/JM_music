@@ -46,5 +46,9 @@ public class PrivateMessageUserVo {
      * 当前用户未读消息数
      */
     private Integer unreadCount;
+    /**
+     * 是否在线
+     */
+    private Boolean online;
 
 }

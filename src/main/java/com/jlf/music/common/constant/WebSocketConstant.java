@@ -24,6 +24,10 @@ public class WebSocketConstant {
      */
     public static final String TYPE_CHAT_INACTIVE = "chat_inactive";
     /**
+     * 心跳消息
+     */
+    public static final String TYPE_HEART_BEAT = "heartbeat";
+    /**
      * 撤回消息错误提示信息
      */
     public static final String RECALL_MESSAGE_TIMEOUT = "消息已超过2分钟，无法撤回";
