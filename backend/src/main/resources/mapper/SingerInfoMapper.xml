@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jlf.music.mapper.SingerInfoMapper">
+    <!-- 分页查询歌手 -->
+    <select id="getSingersByPage" resultType="com.jlf.music.controller.vo.SingerVo">
+        SELECT
+        si.singer_id AS singerId,
+        si.singer_name AS singerName,
+        si.singer_nat AS singerNat,
+        si.singer_bio AS singerBio,
+        si.region_id AS regionId,
+        ri.region_name AS regionName,
+        si.singer_sex AS singerSex,
+        si.singer_birth AS singerBirth,
+        si.singer_debut_date AS singerDebutDate,
+        si.singer_avatar AS singerAvatar,
+        si.create_time AS createTime,
+        si.update_time AS updateTime,
+        si.delete_flag AS deleteFlag
+        FROM
+        singer_info si
+        LEFT JOIN
+        region_info ri ON si.region_id = ri.region_id AND ri.delete_flag = 0
+        WHERE
+        si.delete_flag = 0
+        <if test="singerQry.singerName != null and singerQry.singerName != ''">
+            AND si.singer_name LIKE CONCAT('%', #{singerQry.singerName}, '%')
+        </if>
+        <if test="singerQry.singerSex != null">
+            AND si.singer_sex = #{singerQry.singerSex}
+        </if>
+        <if test="singerQry.regionId != null">
+            AND si.region_id = #{singerQry.regionId}
+        </if>
+        ORDER BY si.create_time DESC
+    </select>
+</mapper>

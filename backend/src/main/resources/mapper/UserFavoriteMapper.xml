@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jlf.music.mapper.UserFavoriteMapper">
+    <select id="findUserFavoriteSongs" resultType="com.jlf.music.controller.vo.SongSimpleInfoVo">
+        select si.song_id,
+               si.song_name,
+               sgi.singer_name
+        from user_favorite uf
+                 left join song_info si on uf.target_id = si.song_id and si.delete_flag = 0
+                 left join singer_info sgi on si.singer_id = sgi.singer_id and sgi.delete_flag = 0
+        where uf.user_id = #{userId}
+        order by uf.collection_time desc
+    </select>
+    <!-- 查询用户收藏的播放列表 -->
+    <select id="selectUserPlaylistCollect" resultType="com.jlf.music.controller.vo.SimpleItemVo">
+        SELECT pi.playlist_id    AS id,
+               pi.playlist_name  AS name,
+               pi.playlist_cover AS cover
+        FROM user_favorite uf
+                 JOIN
+             playlist_info pi ON uf.target_id = pi.playlist_id and pi.delete_flag = 0
+        WHERE uf.user_id = #{userId}
+          AND uf.target_type = #{playlistType}
+        ORDER BY uf.collection_time DESC
+    </select>
+
+    <!-- 查询用户收藏的专辑 -->
+    <select id="selectUserAlbumCollect" resultType="com.jlf.music.controller.vo.SimpleItemVo">
+        SELECT ai.album_id    AS id,
+               ai.album_name  AS name,
+               ai.album_cover AS cover
+        FROM user_favorite uf
+                 JOIN
+             album_info ai ON uf.target_id = ai.album_id and ai.delete_flag = 0
+        WHERE uf.user_id = #{userId}
+          AND uf.target_type = #{albumType}
+        ORDER BY uf.collection_time DESC
+    </select>
+</mapper>

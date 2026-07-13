@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jlf.music.mapper.PrivateMessageMapper">
+    <!-- 获取私聊用户列表 -->
+    <select id="findUsersWithMessageHistory" resultType="com.jlf.music.controller.vo.PrivateMessageUserVo">
+        SELECT ru.user_id                                                                             AS otherUserId,
+               ru.user_name                                                                           AS otherUserName,
+               ru.user_avatar                                                                         AS otherUserAvatar,
+               (SELECT pm.content
+                FROM private_message pm
+                WHERE pm.message_id = (SELECT MAX(message_id)
+                                       FROM private_message
+                                       WHERE (sender_id = #{senderId} AND receiver_id = ru.user_id)
+                                          OR (sender_id = ru.user_id AND receiver_id = #{senderId}))) AS lastMessageContent,
+               (SELECT MAX(create_time)
+                FROM private_message
+                WHERE (sender_id = #{senderId} AND receiver_id = ru.user_id)
+                   OR (sender_id = ru.user_id AND receiver_id = #{senderId}))                         AS lastMessageTime,
+               (SELECT COUNT(*)
+                FROM private_message
+                WHERE receiver_id = #{senderId}
+                  AND sender_id = ru.user_id
+                  AND is_read = 0)                                                                    AS unreadCount
+        FROM sys_user ru
+        WHERE ru.delete_flag = 0
+          AND EXISTS (SELECT 1
+                      FROM private_message pm
+                      WHERE (pm.sender_id = #{senderId} AND pm.receiver_id = ru.user_id)
+                         OR (pm.sender_id = ru.user_id AND pm.receiver_id = #{senderId}))
+        GROUP BY ru.user_id
+        ORDER BY lastMessageTime DESC
+    </select>
+
+</mapper>
